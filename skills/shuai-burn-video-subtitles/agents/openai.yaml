@@ -1,0 +1,4 @@
+interface:
+  display_name: "视频字幕烧录"
+  short_description: "从 MP4 转写、润色、网页校对到字幕烧录；也可复用已有 SRT"
+  default_prompt: "Use $shuai-burn-video-subtitles to transcribe my MP4 if needed, polish the SRT, open the review page, preview the style, and burn a new subtitled MP4."

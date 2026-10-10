@@ -1,0 +1,19 @@
+# OS and Python runtime files
+.DS_Store
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.env.*
+
+# Local subtitle/video work and previews
+*.subtitle-work/
+*.mp4
+*.mov
+*.MOV
+*.mkv
+*.wav
+*.mp3
+*.srt
+*.ass
+*.log

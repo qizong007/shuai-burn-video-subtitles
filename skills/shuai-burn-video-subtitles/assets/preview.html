@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>字幕校对</title>
+<script>
+const THEME_KEY = "burn-subs:theme";
+let themePreference = "auto";
+try {
+  const savedTheme = localStorage.getItem(THEME_KEY);
+  if (["auto", "light", "dark"].includes(savedTheme)) themePreference = savedTheme;
+} catch (_) { /* The editor also works when browser storage is unavailable. */ }
+function applyTheme(now = new Date()) {
+  const hour = now.getHours();
+  document.documentElement.dataset.theme = themePreference === "auto"
+    ? (hour >= 7 && hour < 19 ? "light" : "dark")
+    : themePreference;
+  const button = document.getElementById("btnTheme");
+  if (button) {
+    const dark = document.documentElement.dataset.theme === "dark";
+    button.querySelector(".theme-sun").toggleAttribute("hidden", dark);
+    button.querySelector(".theme-moon").toggleAttribute("hidden", !dark);
+    button.setAttribute("aria-label", dark ? "切换为浅色主题" : "切换为深色主题");
+    button.title = `${dark ? "深色" : "浅色"}（${themePreference === "auto" ? "按时间自动" : "手动"}）；点击切换，右键恢复自动`;
+  }
+}
+applyTheme();
+</script>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f5f5f5;
+    --surface: #fff;
+    --border: #dedede;
+    --text: #171717;
+    --muted: #666;
+    --accent: #171717;
+    --on-accent: #fff;
+    --hover: #f2f2f2;
+    --current: #e8e8e8;
+    --mark: #d4d4d4;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #111;
+    --surface: #181818;
+    --border: #383838;
+    --text: #f5f5f5;
+    --muted: #aaa;
+    --accent: #f5f5f5;
+    --on-accent: #171717;
+    --hover: #242424;
+    --current: #303030;
+    --mark: #505050;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    height: 100vh;
+    display: flex;
+  }
+  .video-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .video-wrap {
+    flex: 1; min-height: 0; background: #000;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  .video-wrap video { width: 100%; height: 100%; object-fit: contain; }
+  .current-subtitle {
+    position: absolute; z-index: 7; bottom: 7.5%; left: 50%;
+    transform: translateX(-50%); max-width: 70%;
+    text-align: center;
+    font-family: "Hiragino Sans GB", "PingFang SC", sans-serif;
+    font-size: clamp(13px, 2.05vw, 22px);
+    font-weight: 600; line-height: 1.34; color: #fff;
+    background: rgba(28, 26, 26, 0.76);
+    padding: 4px 10px; border-radius: 8px;
+    pointer-events: none; white-space: pre-wrap; word-break: break-word;
+    display: none;
+  }
+  .current-subtitle.visible { display: block; }
+  .content-progress {
+    display: none; position: absolute; left: 0; right: 0; bottom: 0;
+    height: 28px; background: linear-gradient(transparent, rgba(0,0,0,.45));
+  }
+  .content-progress.visible { display: block; }
+  .content-progress-fill {
+    position: absolute; left: 0; top: 18px; height: 3px;
+    background: #fff; width: 0;
+  }
+  .content-progress-label {
+    position: absolute; top: 2px; overflow: hidden;
+    color: #fff; font-size: 10px; white-space: nowrap; opacity: .85;
+  }
+  .list-pane {
+    width: 380px; flex-shrink: 0; background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+  }
+  .panel-header, .list-header, .panel-footer, .find-bar {
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  }
+  .panel-footer { border-bottom: 0; border-top: 1px solid var(--border); flex-direction: column; align-items: stretch; }
+  .brand { font-size: 13px; font-weight: 700; flex: 1; }
+  .btn {
+    padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border);
+    background: transparent; color: var(--text); font-size: 12px; cursor: pointer;
+  }
+  .btn:hover { background: var(--hover); }
+  input[type="checkbox"] { accent-color: var(--accent); }
+  [hidden] { display: none !important; }
+  .btn:disabled, .icon-btn:disabled { opacity: .4; cursor: default; }
+  .icon-btn:disabled:hover { color: var(--muted); background: transparent; }
+  button:focus-visible, select:focus-visible, input:focus-visible, .sub-text:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  .btn.save {
+    background: var(--accent); border-color: var(--accent); color: var(--on-accent);
+    font-weight: 600; padding: 8px 16px; font-size: 13px; width: 100%;
+  }
+  .find-bar { display: none; flex-wrap: wrap; }
+  .find-bar.show { display: flex; }
+  .find-bar input {
+    flex: 1; min-width: 90px; border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 8px; font-size: 12px;
+    background: var(--surface); color: var(--text);
+  }
+  .find-bar input::placeholder { color: var(--muted); }
+  .list-header { font-size: 12px; color: var(--muted); }
+  #listInfo { flex: 1; }
+  .history-controls { display: flex; gap: 4px; }
+  .subtitle-list { flex: 1; overflow: auto; }
+  .sub-item {
+    display: grid; grid-template-columns: 18px 78px minmax(0, 1fr) 68px;
+    gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--border);
+    cursor: pointer; align-items: start;
+  }
+  .sub-item:hover { background: var(--hover); }
+  .sub-item.current { background: var(--current); box-shadow: inset 3px 0 var(--accent); }
+  .sub-item.selected { outline: 1px solid var(--muted); outline-offset: -1px; }
+  .sub-item.is-hidden .sub-text { color: var(--muted); opacity: .65; }
+  .sub-times { font-size: 10px; color: var(--muted); line-height: 1.4; }
+  .sub-text { font-size: 13px; line-height: 1.45; min-height: 1.4em; outline: none; }
+  .sub-actions { display: flex; gap: 12px; }
+  .icon-btn {
+    width: 28px; height: 28px; flex-shrink: 0; display: inline-flex;
+    align-items: center; justify-content: center; border-radius: 5px;
+    border: 0; background: transparent; cursor: pointer; color: var(--muted);
+  }
+  .icon-btn:hover { color: var(--text); background: var(--hover); }
+  .icon-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .panel-status { font-size: 12px; color: var(--muted); min-height: 16px; }
+  mark { background: var(--mark); color: var(--text); padding: 0; }
+</style>
+</head>
+<body>
+  <div class="video-pane">
+    <div class="video-wrap">
+      <video id="vid" controls src="/video"></video>
+      <div class="current-subtitle" id="curSub"></div>
+      <div class="content-progress" id="contentProgress">
+        <div class="content-progress-fill" id="contentProgressFill"></div>
+        <div id="contentProgressLabels"></div>
+      </div>
+    </div>
+  </div>
+  <div class="list-pane">
+    <div class="panel-header">
+      <span class="brand">字幕校对</span>
+      <button class="icon-btn" id="btnTheme" aria-label="切换主题">
+        <svg class="theme-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
+        <svg class="theme-moon" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M20.5 14A8.5 8.5 0 0 1 10 3.5 8.5 8.5 0 1 0 20.5 14Z"/></svg>
+      </button>
+      <button class="btn" id="btnFind" aria-expanded="false" aria-controls="findBar">查找</button>
+      <button class="btn" id="btnMerge" hidden>合并</button>
+      <button class="btn" id="btnHideSelected" disabled>隐藏</button>
+    </div>
+    <div class="find-bar" id="findBar">
+      <input id="findInput" placeholder="查找">
+      <input id="replaceInput" placeholder="替换为">
+      <button class="btn" id="btnReplaceOne">替换下一个</button>
+      <button class="btn" id="btnReplaceAll">全部替换</button>
+    </div>
+    <div class="list-header">
+      <span id="listInfo"></span>
+      <div class="history-controls" role="group" aria-label="操作历史">
+        <button class="icon-btn" id="btnUndo" aria-label="撤回" title="撤回（Cmd/Ctrl+Z）" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5-5 5 5 5M4 10h10a6 6 0 0 1 0 12" transform="translate(0 -2)"/></svg></button>
+        <button class="icon-btn" id="btnRedo" aria-label="重做" title="重做（Cmd/Ctrl+Y）" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 5 5-5 5m5-5H10a6 6 0 0 0 0 12" transform="translate(0 -2)"/></svg></button>
+      </div>
+    </div>
+    <div class="subtitle-list" id="list"></div>
+    <div class="panel-footer">
+      <div class="panel-status" id="statusText">单击跳转，双击编辑，Cmd/Ctrl+F 查找</div>
+      <button class="btn save" id="btnSave">保存并关闭</button>
+    </div>
+  </div>
+<script>
+const LS_KEY = __CACHE_KEY__;
+let segments = [];
+let selectedIds = new Set();
+let findIndex = -1;
+let currentNeedle = "";
+let manifest = null;
+let chapters = [];
+const HISTORY_LIMIT = 50;
+let undoStack = [];
+let redoStack = [];
+
+const vid = document.getElementById("vid");
+const curSub = document.getElementById("curSub");
+const listEl = document.getElementById("list");
+const findInput = document.getElementById("findInput");
+const repInput = document.getElementById("replaceInput");
+const listInfo = document.getElementById("listInfo");
+const statusTxt = document.getElementById("statusText");
+const findBarEl = document.getElementById("findBar");
+const contentProgress = document.getElementById("contentProgress");
+const contentProgressFill = document.getElementById("contentProgressFill");
+const contentProgressLabels = document.getElementById("contentProgressLabels");
+const themeButton = document.getElementById("btnTheme");
+function setThemePreference(theme) {
+  themePreference = theme;
+  try { localStorage.setItem(THEME_KEY, themePreference); } catch (_) {}
+  applyTheme();
+}
+themeButton.addEventListener("click", () => {
+  setThemePreference(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+});
+themeButton.addEventListener("contextmenu", e => { e.preventDefault(); setThemePreference("auto"); });
+applyTheme();
+setInterval(applyTheme, 60_000);
+window.addEventListener("focus", () => applyTheme());
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) applyTheme();
+});
+
+function escapeHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+function escapeRe(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function insertMarks(text, needle) {
+  if (!needle) return escapeHtml(text);
+  return escapeHtml(text).replace(new RegExp(escapeRe(needle), "gi"), m => `<mark>${m}</mark>`);
+}
+function fmtSeg(seg) {
+  const fmt = s => {
+    const m = Math.floor(s / 60);
+    const sec = (s % 60).toFixed(2).padStart(5, "0");
+    return `${m}:${sec}`;
+  };
+  return `${fmt(seg.start)} → ${fmt(seg.end)}`;
+}
+function visibleSegments() {
+  return segments.filter(s => !s.hidden);
+}
+
+function mergeableSelection() {
+  const indexes = segments.flatMap((s, index) => selectedIds.has(s._id) ? [index] : []);
+  if (indexes.length < 2 || indexes.some((index, offset) =>
+    segments[index].hidden || index !== indexes[0] + offset)) return null;
+  return indexes;
+}
+
+const ICONS = {
+  edit: '<path d="m16 3 5 5-12 12-6 1 1-6Z"/><path d="m14 5 5 5"/>',
+  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff: '<path d="m3 3 18 18M10.6 5.1 12 5c6.5 0 10 7 10 7a20 20 0 0 1-3 3.8M6.4 6.4A22 22 0 0 0 2 12s3.5 7 10 7a12 12 0 0 0 5.6-1.4M10 10a3 3 0 0 0 4 4"/>',
+};
+function icon(name) {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
+}
+
+function renderCurrentSubtitle(seg) {
+  if (!seg) {
+    curSub.classList.remove("visible");
+    curSub.textContent = "";
+    return;
+  }
+  curSub.textContent = (seg.text || "").trim();
+  curSub.classList.add("visible");
+}
+
+function setupContentProgress() {
+  const duration = Number(manifest.duration || 0);
+  const enabled = duration > 180 && chapters.length > 1;
+  contentProgress.classList.toggle("visible", enabled);
+  contentProgressLabels.replaceChildren();
+  if (!enabled) return;
+  chapters.forEach((chapter, index) => {
+    const startPercent = Math.max(0, Math.min(100, Number(chapter.start) / duration * 100));
+    const endPercent = Math.max(startPercent, Math.min(100, Number(chapter.end) / duration * 100));
+    const label = document.createElement("span");
+    label.className = "content-progress-label";
+    label.style.left = `${startPercent}%`;
+    label.style.width = `${endPercent - startPercent}%`;
+    label.textContent = chapter.title || `第 ${index + 1} 节`;
+    contentProgressLabels.appendChild(label);
+  });
+}
+
+function updateContentProgress(time) {
+  const duration = Number(manifest?.duration || vid.duration || 0);
+  if (!contentProgress.classList.contains("visible") || !duration) return;
+  contentProgressFill.style.width = `${Math.max(0, Math.min(duration, time || 0)) / duration * 100}%`;
+}
+
+function syncCurSub(doScroll) {
+  const t = vid.currentTime;
+  let active = null;
+  for (const s of segments) {
+    // Shared boundaries belong to the next cue: [start, end).
+    if (!s.hidden && t >= s.start && t < s.end) { active = s; break; }
+  }
+  renderCurrentSubtitle(active);
+  document.querySelectorAll(".sub-item").forEach(el => {
+    const isActive = active && el.dataset.id == active._id;
+    el.classList.toggle("current", !!isActive);
+    if (isActive && doScroll !== false) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  });
+}
+
+function render() {
+  listEl.innerHTML = "";
+  segments.forEach((seg, index) => {
+    const id = seg._id || (seg._id = Math.random().toString(36).slice(2));
+    const item = document.createElement("div");
+    item.className = "sub-item" + (seg.hidden ? " is-hidden" : "") + (selectedIds.has(id) ? " selected" : "");
+    item.dataset.id = id;
+
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.checked = selectedIds.has(id);
+    check.setAttribute("aria-label", `选择字幕 ${index + 1}`);
+    check.addEventListener("click", e => {
+      e.stopPropagation();
+      check.checked ? selectedIds.add(id) : selectedIds.delete(id);
+      item.classList.toggle("selected", check.checked);
+      updateInfo();
+    });
+
+    const times = document.createElement("div");
+    times.className = "sub-times";
+    times.textContent = fmtSeg(seg);
+
+    const textEl = document.createElement("div");
+    textEl.className = "sub-text";
+    if (currentNeedle) textEl.innerHTML = insertMarks(seg.text || "", currentNeedle);
+    else textEl.textContent = seg.text || "";
+    textEl.addEventListener("dblclick", e => { e.stopPropagation(); startEdit(id, textEl); });
+    textEl.addEventListener("blur", () => {
+      if (textEl.contentEditable === "true") {
+        finishEdit(id, textEl.innerText.trim());
+        textEl.contentEditable = "false";
+        textEl.innerHTML = insertMarks(seg.text || "", currentNeedle);
+        syncCurSub(false);
+      }
+    });
+    textEl.addEventListener("keydown", e => {
+      if (e.key === "Escape") { textEl.contentEditable = "false"; render(); }
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); textEl.blur(); }
+    });
+
+    const actions = document.createElement("div");
+    actions.className = "sub-actions";
+    const editBtn = document.createElement("button");
+    editBtn.className = "icon-btn";
+    editBtn.innerHTML = icon("edit");
+    editBtn.setAttribute("aria-label", "编辑字幕");
+    editBtn.title = "编辑字幕";
+    editBtn.addEventListener("click", e => { e.stopPropagation(); startEdit(id, textEl); });
+    const visibilityBtn = document.createElement("button");
+    visibilityBtn.className = "icon-btn visibility-btn";
+    visibilityBtn.innerHTML = icon(seg.hidden ? "eyeOff" : "eye");
+    visibilityBtn.setAttribute("aria-label", seg.hidden ? "显示字幕" : "隐藏字幕");
+    visibilityBtn.setAttribute("aria-pressed", String(!seg.hidden));
+    visibilityBtn.title = seg.hidden ? "显示字幕" : "隐藏字幕";
+    visibilityBtn.addEventListener("click", e => { e.stopPropagation(); toggleHidden(id); });
+    actions.append(editBtn, visibilityBtn);
+
+    item.addEventListener("click", () => {
+      if (textEl.contentEditable === "true") return;
+      vid.currentTime = seg.start;
+      syncCurSub(false);
+    });
+    item.append(check, times, textEl, actions);
+    listEl.appendChild(item);
+  });
+  updateInfo();
+  syncCurSub(false);
+}
+
+function startEdit(id, textEl) {
+  textEl.contentEditable = "true";
+  const seg = segments.find(s => s._id === id);
+  textEl.textContent = seg ? seg.text || "" : "";
+  textEl.focus();
+}
+
+function finishEdit(id, value) {
+  const seg = segments.find(s => s._id === id);
+  if (seg) commitChange(() => { seg.text = value; });
+}
+
+function toggleHidden(id) {
+  const seg = segments.find(s => s._id === id);
+  if (!seg) return;
+  commitChange(() => { seg.hidden = !seg.hidden; });
+  render();
+}
+
+function updateInfo() {
+  const total = segments.length;
+  const vis = visibleSegments().length;
+  listInfo.textContent = `共 ${total} 条 · 已选 ${selectedIds.size} · 隐藏 ${total - vis}`;
+  document.getElementById("btnMerge").hidden = !mergeableSelection();
+  document.getElementById("btnHideSelected").disabled = !segments.some(s => selectedIds.has(s._id) && !s.hidden);
+}
+
+function saveLS() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ version: 2, segments })); } catch (_) {}
+}
+
+function captureState() {
+  return { segments: JSON.parse(JSON.stringify(segments)), selectedIds: [...selectedIds] };
+}
+function updateHistoryButtons() {
+  document.getElementById("btnUndo").disabled = !undoStack.length;
+  document.getElementById("btnRedo").disabled = !redoStack.length;
+}
+function commitChange(change) {
+  const before = captureState();
+  change();
+  if (JSON.stringify(before.segments) === JSON.stringify(segments)) return;
+  undoStack.push(before);
+  if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
+  redoStack = [];
+  saveLS();
+  updateHistoryButtons();
+  document.getElementById("btnSave").disabled = false;
+}
+function restoreHistory(from, to, label) {
+  if (!from.length) return;
+  to.push(captureState());
+  if (to.length > HISTORY_LIMIT) to.shift();
+  const state = from.pop();
+  segments = state.segments;
+  selectedIds = new Set(state.selectedIds);
+  findIndex = -1;
+  saveLS();
+  render();
+  updateHistoryButtons();
+  document.getElementById("btnSave").disabled = false;
+  statusTxt.textContent = label;
+}
+document.getElementById("btnUndo").addEventListener("click", () => restoreHistory(undoStack, redoStack, "已撤回"));
+document.getElementById("btnRedo").addEventListener("click", () => restoreHistory(redoStack, undoStack, "已重做"));
+
+function toggleFind(force) {
+  const show = force ?? !findBarEl.classList.contains("show");
+  findBarEl.classList.toggle("show", show);
+  document.getElementById("btnFind").setAttribute("aria-expanded", String(show));
+  if (show) { findInput.focus(); findInput.select(); }
+  else { currentNeedle = ""; render(); }
+}
+document.getElementById("btnFind").addEventListener("click", () => toggleFind());
+
+document.addEventListener("keydown", e => {
+  const typing = e.target.closest('textarea, input:not([type="checkbox"]), [contenteditable="true"]');
+  const command = e.ctrlKey || e.metaKey;
+  if (command && !e.altKey && !typing && !e.isComposing) {
+    const key = e.key.toLowerCase();
+    if (!e.shiftKey && (key === "z" || key === "y")) {
+      e.preventDefault();
+      if (key === "y") restoreHistory(redoStack, undoStack, "已重做");
+      else restoreHistory(undoStack, redoStack, "已撤回");
+      return;
+    }
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+    e.preventDefault();
+    toggleFind();
+  }
+  if (e.key === "Escape" && findBarEl.classList.contains("show")) {
+    toggleFind(false);
+  }
+});
+
+findInput.addEventListener("input", () => { currentNeedle = findInput.value; render(); });
+
+function doFind(replaceVal, replaceOne) {
+  const needle = findInput.value;
+  if (!needle) return;
+  const re = new RegExp(escapeRe(needle), "i");
+  const vis = visibleSegments();
+  if (replaceVal && !replaceOne) {
+    let count = 0;
+    commitChange(() => {
+      vis.forEach(s => {
+        const next = (s.text || "").replace(new RegExp(escapeRe(needle), "gi"), replaceVal);
+        if (next !== s.text) { s.text = next; count++; }
+      });
+    });
+    statusTxt.textContent = `已替换 ${count} 处`;
+    render(); return;
+  }
+  const startIdx = findIndex < 0 ? 0 : findIndex + 1;
+  for (let i = 0; i < vis.length; i++) {
+    const idx = (startIdx + i) % vis.length;
+    if (!re.test(vis[idx].text || "")) continue;
+    findIndex = idx;
+    const el = listEl.querySelector(`[data-id="${vis[idx]._id}"]`);
+    if (el) el.scrollIntoView({ block: "nearest" });
+    if (replaceOne) {
+      commitChange(() => {
+        vis[idx].text = (vis[idx].text || "").replace(new RegExp(escapeRe(needle), "gi"), replaceVal);
+      });
+      render();
+    }
+    return;
+  }
+  statusTxt.textContent = "未找到: " + needle;
+}
+
+document.getElementById("btnReplaceOne").addEventListener("click", () => doFind(repInput.value, true));
+document.getElementById("btnReplaceAll").addEventListener("click", () => doFind(repInput.value, false));
+findInput.addEventListener("keydown", e => { if (e.key === "Enter") doFind(repInput.value, true); });
+
+document.getElementById("btnHideSelected").addEventListener("click", () => {
+  let count = 0;
+  commitChange(() => {
+    segments.forEach(s => {
+      if (selectedIds.has(s._id) && !s.hidden) { s.hidden = true; count++; }
+    });
+    selectedIds.clear();
+  });
+  statusTxt.textContent = `已隐藏 ${count} 条，可点击眼睛图标恢复`;
+  render();
+});
+document.getElementById("btnMerge").addEventListener("click", () => {
+  const indexes = mergeableSelection();
+  if (!indexes) return;
+  const cues = indexes.map(index => segments[index]);
+  const merged = {
+    ...cues[0], end: cues[cues.length - 1].end,
+    text: cues.map(s => (s.text || "").trim()).join(" "),
+  };
+  commitChange(() => {
+    segments.splice(indexes[0], indexes.length, merged);
+    selectedIds = new Set([merged._id]);
+  });
+  statusTxt.textContent = `已合并 ${cues.length} 条字幕`;
+  render();
+});
+
+document.getElementById("btnSave").addEventListener("click", async () => {
+  const active = document.activeElement;
+  if (active && active.classList.contains("sub-text")) active.blur();
+  const toSave = segments.map(({ _id, ...rest }) => rest);
+  const saveBtn = document.getElementById("btnSave");
+  saveBtn.disabled = true;
+  statusTxt.textContent = "正在保存…";
+  try {
+    const res = await fetch("/api/transcript", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ segments: toSave })
+    });
+    if (!res.ok) throw new Error("Save failed");
+    const result = await res.json();
+    try { localStorage.removeItem(LS_KEY); } catch (_) {}
+    statusTxt.textContent = `已保存 ${toSave.length} 条（隐藏 ${result.hidden || 0} 条）。可关闭此页并告诉 Agent 继续同步 SRT`;
+    window.close();
+  } catch (_) {
+    statusTxt.textContent = "保存失败，请重试";
+    saveBtn.disabled = false;
+  }
+});
+
+vid.addEventListener("timeupdate", () => { syncCurSub(); updateContentProgress(vid.currentTime); });
+vid.addEventListener("seeking", () => syncCurSub(false));
+vid.addEventListener("seeked", () => syncCurSub(false));
+vid.addEventListener("loadedmetadata", setupContentProgress);
+
+async function init() {
+  manifest = await (await fetch("/manifest")).json();
+  chapters = Array.isArray(manifest.chapters) ? manifest.chapters : [];
+  const data = await (await fetch("/api/transcript", { cache: "no-store" })).json();
+  segments = (data.segments || []).map(s => Object.assign({}, s, { _id: Math.random().toString(36).slice(2) }));
+  try {
+    const draft = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+    if (draft?.version === 2 && Array.isArray(draft.segments)) segments = draft.segments;
+  } catch (_) {}
+  render();
+  setupContentProgress();
+  syncCurSub(false);
+}
+init();
+</script>
+</body>
+</html>

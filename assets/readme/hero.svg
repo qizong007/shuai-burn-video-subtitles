@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" role="img" aria-labelledby="title desc">
+  <title id="title">shuai-burn-video-subtitles — 把字幕改对，再烧进视频</title>
+  <desc id="desc">黑白字幕工作流示意：本地转写或复用 SRT，在浏览器中校对、合并和隐藏字幕，确认样式后输出带字幕的新 MP4。</desc>
+  <rect width="1200" height="560" rx="20" fill="#fafafa"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" fill="#171717">
+    <g id="heading">
+      <text x="64" y="62" font-family="ui-monospace, 'SFMono-Regular', Menlo, monospace" font-size="26">shuai-burn-video-subtitles</text>
+      <text x="1136" y="62" text-anchor="end" font-size="20" fill="#666666" letter-spacing="2">AGENT SKILL</text>
+      <text x="64" y="148" font-size="62" font-weight="650" letter-spacing="-1">把字幕改对，再烧进视频。</text>
+      <text x="64" y="198" font-size="26" fill="#666666">中文口播 · 本地校对 · 先预览，再导出</text>
+    </g>
+    <path d="M64 236H1136" stroke="#d8d8d8"/>
+    <g id="transcription" transform="translate(64 266)">
+      <path d="M8 66H38 M48 48V84 M66 26V106 M84 42V90 M102 6V126 M120 30V102 M138 48V84 M156 14V118 M174 38V94 M192 52V80 M202 66H232" fill="none" stroke="#171717" stroke-width="5" stroke-linecap="round"/>
+      <text x="0" y="202" font-size="44" font-weight="600">转写</text>
+      <text x="0" y="245" font-size="24" fill="#666666">已有 SRT，直接复用</text>
+    </g>
+    <g id="review" transform="translate(457 266)">
+      <rect x="0" y="9" width="24" height="24" rx="4" fill="#171717"/>
+      <path d="M6 20L11 25L19 16" fill="none" stroke="#fafafa" stroke-width="2"/>
+      <text x="42" y="32" font-size="29">先校对字幕</text>
+      <rect x="0" y="63" width="24" height="24" rx="4" fill="#171717"/>
+      <path d="M6 74L11 79L19 70" fill="none" stroke="#fafafa" stroke-width="2"/>
+      <text x="42" y="86" font-size="29">再确认样式</text>
+      <path d="M0 118H228" stroke="#d8d8d8"/>
+      <text x="0" y="202" font-size="44" font-weight="600">校对</text>
+      <text x="0" y="245" font-size="24" fill="#666666">编辑 · 合并 · 隐藏 · 撤回</text>
+    </g>
+    <g id="burn-in" transform="translate(850 266)">
+      <rect width="286" height="148" rx="8" fill="#171717"/>
+      <path d="M132 36L132 72L162 54Z" fill="#fafafa"/>
+      <rect x="32" y="100" width="222" height="34" rx="5" fill="#383838"/>
+      <text x="143" y="124" text-anchor="middle" font-size="23" fill="#fafafa">先校对，再出片</text>
+      <text x="0" y="202" font-size="44" font-weight="600">烧录</text>
+      <text x="0" y="245" font-size="24" fill="#666666">输出带字幕的新 MP4</text>
+    </g>
+    <g id="flow" fill="none" stroke="#999999" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M352 332H402L391 321M402 332L391 343"/>
+      <path d="M747 332H797L786 321M797 332L786 343"/>
+    </g>
+  </g>
+</svg>

@@ -1,5 +1,7 @@
 # shuai-burn-video-subtitles
 
+![字幕工作流：本地转写或复用 SRT，在浏览器中校对、合并和隐藏字幕，确认样式后烧录为新的 MP4。](assets/readme/hero.svg)
+
 面向中文口播视频的 Agent Skill：从语音转写、字幕校对，到本地网页审核和字幕烧录。
 
 已有 SRT 就直接复用；没有 SRT 才转写。先把字幕改对，再确认样式，最后输出带字幕的新视频。

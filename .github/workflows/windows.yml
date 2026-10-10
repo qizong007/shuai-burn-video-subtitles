@@ -1,0 +1,33 @@
+name: Windows smoke test
+on:
+  push:
+    paths: ['skills/**', 'tests/**', '.github/workflows/windows.yml']
+  pull_request:
+    paths: ['skills/**', 'tests/**', '.github/workflows/windows.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pillow faster-whisper opencc-python-reimplemented
+      - name: Verify transcription dependencies
+        run: python -c "from faster_whisper import WhisperModel; from opencc import OpenCC; print(OpenCC('t2s').convert('語音轉寫'))"
+      - name: Install FFmpeg and Chinese test font
+        shell: pwsh
+        run: |
+          Invoke-WebRequest 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip' -OutFile "$env:RUNNER_TEMP/ffmpeg.zip"
+          Expand-Archive "$env:RUNNER_TEMP/ffmpeg.zip" "$env:RUNNER_TEMP/ffmpeg"
+          $ffmpeg = Get-ChildItem "$env:RUNNER_TEMP/ffmpeg" -Filter ffmpeg.exe -Recurse | Select-Object -First 1
+          $ffmpeg.DirectoryName | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+          Invoke-WebRequest 'https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf' -OutFile "$env:RUNNER_TEMP/caption.otf"
+          "SUBTITLE_TEST_FONT=$env:RUNNER_TEMP/caption.otf" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+      - run: python -m unittest discover -s tests -v

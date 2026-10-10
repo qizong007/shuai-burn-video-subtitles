@@ -36,7 +36,7 @@ MANIFEST_NAME = "subtitle-manifest.json"
 
 
 def probe_duration(video: Path) -> float:
-    ffprobe = os.environ.get("FFPROBE_BIN") or shutil.which("ffprobe") or "/opt/homebrew/bin/ffprobe"
+    ffprobe = os.environ.get("FFPROBE_BIN") or shutil.which("ffprobe") or "ffprobe"
     try:
         out = subprocess.check_output(
             [

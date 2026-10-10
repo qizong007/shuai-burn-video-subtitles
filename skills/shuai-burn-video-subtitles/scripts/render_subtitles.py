@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Burn a UTF-8 SRT into an MP4 with the approved caption look.
 
-White Hiragino Sans GB, slightly bold, tight rounded translucent box, bottom-centered.
+White Chinese text, slightly bold, tight rounded translucent box, bottom-centered.
 For landscape video, use the user-approved larger type and allow 85% frame width.
 """
 
@@ -24,7 +24,6 @@ try:
 except ImportError:
     sys.exit("Need Pillow. Install with: python3 -m pip install pillow")
 
-FONT_PATH = Path("/System/Library/Fonts/Hiragino Sans GB.ttc")
 LANDSCAPE_FONT_SIZE_RATIO = 96 / 2160
 OTHER_FONT_SIZE_RATIO = 0.0278
 PAD_RATIO = 0.0083
@@ -32,7 +31,6 @@ MARGIN_BOTTOM_RATIO = 0.075
 LANDSCAPE_WRAP_WIDTH_RATIO = 0.85
 OTHER_WRAP_WIDTH_RATIO = 0.70
 BOX_COLOR = r"\1c&H1C1A1A&\1a&H3D&"
-KNOWN_FFMPEG = Path.home() / "Tools/ffmpeg/ffmpeg"
 
 
 def rounded_rect_path(width: int, height: int, radius: int) -> str:
@@ -53,14 +51,22 @@ def rounded_rect_path(width: int, height: int, radius: int) -> str:
     )
 
 
-def load_font(size: int) -> ImageFont.FreeTypeFont:
-    last_error = None
-    for index in (1, 0, 2, 3):
+def resolve_font(explicit: Path | None = None, index: int | None = None) -> tuple[Path, int]:
+    if explicit:
+        candidates = [(explicit.expanduser().resolve(), index if index is not None else 0)]
+    elif sys.platform == "win32":
+        fonts = Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts"
+        candidates = [(fonts / name, index if index is not None else 0)
+                      for name in ("msyhbd.ttc", "msyh.ttc", "simhei.ttf")]
+    else:
+        candidates = [(Path("/System/Library/Fonts/Hiragino Sans GB.ttc"), index if index is not None else 1)]
+    for path, face in candidates:
         try:
-            return ImageFont.truetype(str(FONT_PATH), size=size, index=index)
-        except OSError as exc:
-            last_error = exc
-    raise SystemExit(f"Unable to load {FONT_PATH}: {last_error}")
+            ImageFont.truetype(str(path), size=32, index=face)
+            return path, face
+        except OSError:
+            continue
+    raise SystemExit("No usable Chinese font found. Pass --font-file PATH and optionally --font-index N.")
 
 
 def measure_text(font: ImageFont.FreeTypeFont, text: str) -> tuple[int, int]:
@@ -125,14 +131,17 @@ def escape_ass(text: str) -> str:
     return text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}").replace("\n", "\\N")
 
 
-def write_ass(cues: list[dict], output: Path, width: int, height: int) -> dict:
+def write_ass(cues: list[dict], output: Path, width: int, height: int,
+              font_path: Path | None = None, font_index: int | None = None) -> dict:
     landscape = width > height
     font_size_ratio = LANDSCAPE_FONT_SIZE_RATIO if landscape else OTHER_FONT_SIZE_RATIO
     wrap_width_ratio = LANDSCAPE_WRAP_WIDTH_RATIO if landscape else OTHER_WRAP_WIDTH_RATIO
     font_size = int(round(height * font_size_ratio))
     pad = int(round(height * PAD_RATIO))
     margin_bottom = int(round(height * MARGIN_BOTTOM_RATIO))
-    font = load_font(font_size)
+    font_path, font_index = resolve_font(font_path, font_index)
+    font = ImageFont.truetype(str(font_path), size=font_size, index=font_index)
+    font_family = "Hiragino Sans GB" if font_path.name == "Hiragino Sans GB.ttc" else font.getname()[0]
     max_text_width = int(width * wrap_width_ratio)
     header = f"""[Script Info]
 ScriptType: v4.00+
@@ -143,7 +152,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: CaptionText,Hiragino Sans GB,{font_size},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,0,0,5,0,0,0,1
+Style: CaptionText,{font_family},{font_size},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,0,0,5,0,0,0,1
 Style: CaptionBox,Arial,10,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1
 
 [Events]
@@ -187,11 +196,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         "margin_bottom": margin_bottom,
         "cues": len(cues),
         "wrapped": wrapped,
+        "font_file": str(font_path),
+        "font_index": font_index,
+        "font_family": font_family,
     }
 
 
 def run_output(cmd: list[str]) -> str:
-    return subprocess.check_output(cmd, text=True, stderr=subprocess.STDOUT)
+    return subprocess.check_output(cmd, text=True, encoding="utf-8", errors="replace", stderr=subprocess.STDOUT)
 
 
 def has_filter(ffmpeg: str, name: str) -> bool:
@@ -220,8 +232,8 @@ def resolve_ffmpeg(explicit: str | None) -> str:
         [
             explicit,
             os.environ.get("FFMPEG_BIN"),
-            str(KNOWN_FFMPEG),
             shutil.which("ffmpeg"),
+            str(Path.home() / "Tools/ffmpeg/ffmpeg"),
             "/opt/homebrew/bin/ffmpeg",
             "/usr/local/bin/ffmpeg",
         ]
@@ -231,16 +243,16 @@ def resolve_ffmpeg(explicit: str | None) -> str:
         if Path(path).is_file() or shutil.which(path):
             found.append(path)
             if has_filter(path, "ass"):
-                return path
+                return str(Path(shutil.which(path) or path).resolve())
     hint = ", ".join(found) or "none"
     raise SystemExit(
-        "No ffmpeg with libass/ass filter. Homebrew ffmpeg is often built without it. "
-        f"Tried: {hint}. Set FFMPEG_BIN to a libass build, e.g. $HOME/Tools/ffmpeg/ffmpeg."
+        "No ffmpeg with libass/ass filter. "
+        f"Tried: {hint}. Set FFMPEG_BIN or pass --ffmpeg with a libass-enabled binary."
     )
 
 
 def resolve_ffprobe(explicit: str | None, ffmpeg: str) -> str:
-    sibling = str(Path(ffmpeg).with_name("ffprobe"))
+    sibling = str(Path(ffmpeg).with_name("ffprobe" + Path(ffmpeg).suffix))
     candidates = first_existing(
         [
             explicit,
@@ -253,7 +265,7 @@ def resolve_ffprobe(explicit: str | None, ffmpeg: str) -> str:
     )
     for path in candidates:
         if Path(path).is_file() or shutil.which(path):
-            return path
+            return str(Path(shutil.which(path) or path).resolve())
     raise SystemExit("ffprobe not found. Set FFPROBE_BIN.")
 
 
@@ -294,16 +306,24 @@ def probe_duration(ffprobe: str, media: Path) -> float:
     return float(out)
 
 
-def colon_safe_ass(src: Path) -> Path:
-    if ":" not in str(src.resolve()):
-        return src
-    dest = Path(tempfile.mkdtemp(prefix="burn-subs-", dir="/tmp")) / "subs.ass"
-    shutil.copy2(src, dest)
-    return dest
-
-
-def escape_filter_path(path: Path) -> str:
-    return str(path).replace("\\", "\\\\").replace(":", "\\:").replace("'", r"\'")
+def burn_video(ffmpeg: str, video: Path, output: Path, ass_path: Path,
+               font_path: Path, preview: float | None) -> None:
+    # Relative filter paths avoid Windows drive colons and filtergraph escaping.
+    with tempfile.TemporaryDirectory(prefix="burn-subs-") as stage:
+        stage_path = Path(stage)
+        shutil.copy2(ass_path, stage_path / "subs.ass")
+        fonts = stage_path / "fonts"
+        fonts.mkdir()
+        # System fonts may have protected metadata that cannot be copied.
+        shutil.copyfile(font_path, fonts / ("caption" + font_path.suffix))
+        cmd = [ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-i", str(video)]
+        if preview is not None:
+            cmd += ["-t", str(preview)]
+        cmd += ["-map", "0:v:0", "-map", "0:a?", "-vf", "ass=subs.ass:fontsdir=fonts",
+                "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
+                "-c:a", "copy", "-movflags", "+faststart", str(output)]
+        output.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(cmd, cwd=stage_path, check=True)
 
 
 def extract_frames(
@@ -363,6 +383,8 @@ def main() -> None:
     parser.add_argument("--ass-only", action="store_true", help="Write ASS and exit without encoding.")
     parser.add_argument("--ffmpeg")
     parser.add_argument("--ffprobe")
+    parser.add_argument("--font-file", type=Path, help="Override the platform's Chinese font (TTF/OTF/TTC).")
+    parser.add_argument("--font-index", type=int, help="Face index in a font collection; default depends on the font.")
     args = parser.parse_args()
 
     video = args.video.expanduser().resolve()
@@ -387,46 +409,20 @@ def main() -> None:
         ass_path = args.ass.expanduser().resolve()
         ass_path.parent.mkdir(parents=True, exist_ok=True)
     else:
-        work = Path(tempfile.mkdtemp(prefix="burn-subs-", dir="/tmp"))
+        work = Path(tempfile.mkdtemp(prefix="burn-subs-"))
         ass_path = work / "subs.ass"
-    layout = write_ass(cues, ass_path, width, height)
+    layout = write_ass(cues, ass_path, width, height, args.font_file, args.font_index)
     print(
         f"layout: {layout['width']}x{layout['height']} font={layout['font_size']} "
         f"margin_bottom={layout['margin_bottom']} cues={layout['cues']} wrapped={layout['wrapped']}"
     )
     print(f"ffmpeg: {ffmpeg}")
     print(f"ASS: {ass_path}")
+    print(f"font: {layout['font_family']} ({layout['font_file']}, face {layout['font_index']})")
     if args.ass_only:
         return
 
-    filter_ass = colon_safe_ass(ass_path)
-    vf = f"ass={escape_filter_path(filter_ass)}:fontsdir=/System/Library/Fonts"
-    cmd = [ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-i", str(video)]
-    if args.preview:
-        cmd += ["-t", str(args.preview)]
-    cmd += [
-        "-map",
-        "0:v:0",
-        "-map",
-        "0:a?",
-        "-vf",
-        vf,
-        "-c:v",
-        "libx264",
-        "-preset",
-        "fast",
-        "-crf",
-        "18",
-        "-pix_fmt",
-        "yuv420p",
-        "-c:a",
-        "copy",
-        "-movflags",
-        "+faststart",
-        str(output),
-    ]
-    output.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(cmd, check=True)
+    burn_video(ffmpeg, video, output, ass_path, Path(layout["font_file"]), args.preview)
     print(f"Rendered: {output}")
     duration = probe_duration(ffprobe, output)
     print(f"duration: {duration:.6f}s {width}x{height}")

@@ -9,6 +9,8 @@ Accept an MP4 alone or an MP4 with an existing UTF-8 SRT. Use an existing SRT as
 
 Set `<skill-dir>` below to the directory containing this `SKILL.md`; do not assume a personal installation path.
 
+Commands below use POSIX shell syntax. On Windows, use `python` (or `py -3`) and the PowerShell examples in [references/environment.md](references/environment.md). Resolve paths with native path tools rather than copying shell assignments or backslash continuations into PowerShell.
+
 ## 1. Transcribe when needed
 
 Run this skill's `scripts/transcribe_video.py` with `uv` and faster-whisper. It extracts 16 kHz mono WAV and writes `<stem>.srt`, `<stem>_timestamped.txt`, `<stem>_clean.txt`, and `<stem>_segments.json` beside the video. Prefer the small model for technical speech; if its output is too rough, try a larger model after reviewing the cost and time. The script refuses to replace existing outputs unless `--force` is explicitly passed.
@@ -90,7 +92,7 @@ If an SRT is supplied and the user explicitly asks for direct burning, use it wi
 
 Keep these values unless the user asks to change them:
 
-- Font: `Hiragino Sans GB`, slightly bold (`Bold=-1` plus `\b1`)
+- Font: macOS uses `Hiragino Sans GB`; Windows uses Microsoft YaHei Bold / Microsoft YaHei, falling back to SimHei. `--font-file` and optional `--font-index` allow an installed Chinese font override. Keep slightly bold text (`Bold=-1` plus `\b1`).
 - Size: for horizontal video (`width > height`), `height * (96 / 2160)` (96 px at 3064×2160); otherwise `height * 0.0278`
 - Box: PIL-measured tight rounded rect, fill `&H1C1A1A&` at alpha `&H3D&`
 - Wrap: only if measured width exceeds `85%` of a horizontal frame or `70%` of other frames; split on `，` / `,` / `。` / space
@@ -100,4 +102,4 @@ Do not use a full-width black bar or protected PingFang paths.
 
 ## Environment
 
-Read [references/preview-editor.md](references/preview-editor.md) for the review-page protocol, and [references/macos-ffmpeg.md](references/macos-ffmpeg.md) before the first burn on a machine. If port 8765 is taken, use the port printed by `preview_editor.py`; never kill an unknown process. Needs Pillow (`python3 -c "from PIL import ImageFont"`); install it if missing.
+Read [references/preview-editor.md](references/preview-editor.md) for the review-page protocol, and [references/environment.md](references/environment.md) before the first run on macOS or Windows. Check Python 3.10+, Pillow, and libass-enabled FFmpeg. If port 8765 is taken, use the port printed by `preview_editor.py`; never kill an unknown process.

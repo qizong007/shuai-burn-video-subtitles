@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="./assets/readme/hero.svg" width="100%" alt="shuai-burn-video-subtitles：从中文口播到带字幕的视频，先校对，再出片">
+  <img src="./assets/readme/hero.svg" width="100%" alt="shuai-burn-video-subtitles：有视频，就能做字幕；自动转写、网页校对并导出带字幕的视频">
 </p>
 
 <h1 align="center">shuai-burn-video-subtitles</h1>
 
 <p align="center">
-  一段中文口播，完成转写、校对、网页审核与字幕烧录。<br>
-  已有字幕直接复用，确认文字和样式后，输出带字幕的新视频。
+  有视频，就能做字幕。<br>
+  从自动转写、AI 校对到带字幕的成片，支持 macOS 与 Windows。
 </p>
 
 ## 快速开始
@@ -23,7 +23,7 @@ CLI 会让你选择目标 Agent 和安装范围。安装完成后，提供本地
 
 ```text
 使用 $shuai-burn-video-subtitles，给这段中文口播视频加字幕。
-已有 SRT 就直接复用，先校对文字，再打开网页让我审核。
+自动识别语音、校对文字，再打开网页让我审核。
 审核完成后做一段字幕样式预览，确认后再输出完整视频。
 ```
 
@@ -40,11 +40,13 @@ CLI 会让你选择目标 Agent 和安装范围。安装完成后，提供本地
 
 `shuai-burn-video-subtitles` 把这几步串成一套可审核的流程：
 
-- 已有 SRT 时直接复用；缺少字幕时，使用 faster-whisper 本地转写。
-- 由 Agent 对照音视频和项目资料校对文字，保留口述内容。
-- 在网页里边看视频边改字幕，支持合并、隐藏和操作撤回。
-- 先确认字幕文字，再确认短片样式预览，最后导出完整视频。
-- 源视频和原始字幕保留，校对记录与最终成片分别保存。
+- **只需提供视频**：自动提取音频、识别语音并生成字幕，无需提前准备 SRT。
+- **AI 先校对一遍**：结合音视频和项目资料修正错字、人名与术语。
+- **边看边改**：点击字幕跳到画面，双击编辑，支持合并、隐藏和操作撤回。
+- **确认后再出片**：先检查文字和短片样式，再导出完整视频。
+- **成片与文稿一起交付**：带字幕的视频、SRT、带时间戳文稿和纯文本分别保存，保留原件。
+
+有现成 SRT 时也可直接校对或烧录，跳过转写。
 
 ## 支持的操作
 
@@ -66,11 +68,8 @@ CLI 会让你选择目标 Agent 和安装范围。安装完成后，提供本地
 ## 工作流程
 
 ```text
-读取视频与已有字幕 → 缺少字幕时本地转写
-                  → 校对错字、人名、术语与断句
-                  → 网页审核、编辑、合并与隐藏
-                  → 保存记录 → 同步校对 SRT 与文稿
-                  → 短片样式预览 → 确认后烧录完整视频
+提供视频 → 自动转写 → AI 校对 → 网页审核
+         → 同步字幕与文稿 → 短片预览 → 导出带字幕的视频
 ```
 
 默认字幕使用白色略粗字体、贴合文字的半透明深色圆角背景，底部居中。字号和边距随视频尺寸调整，超宽文字自动换行。网页的深浅主题只影响校对界面。
@@ -78,7 +77,7 @@ CLI 会让你选择目标 Agent 和安装范围。安装完成后，提供本地
 <details>
 <summary>独立运行校对页与同步命令</summary>
 
-已有视频和 SRT 时，也可以直接使用仓库中的 Python 脚本。请替换实际文件路径：
+以下为 macOS / POSIX 命令。Windows 请使用 [PowerShell 示例](./skills/shuai-burn-video-subtitles/references/environment.md#windows-powershell)。请替换实际文件路径：
 
 ```bash
 git clone https://github.com/qizong007/shuai-burn-video-subtitles.git
@@ -141,10 +140,10 @@ python3 "$SKILL/scripts/write_transcript_views.py" \
 
 这是一套由 Agent 执行的字幕工作流，附带可独立运行的脚本。文字校对由 Agent 完成，转写和烧录使用本地工具。
 
-- **运行环境**：Python 3；网页校对与 SRT 同步只使用标准库。
+- **运行环境**：Python 3.10+；网页校对与 SRT 同步只使用标准库。
 - **语音转写**：需要 `uv`、faster-whisper 和 OpenCC，首次使用会下载模型。
-- **字幕烧录**：需要 FFmpeg、ffprobe、Pillow，以及 FFmpeg 的 libass / `ass` 滤镜。配置见 [macOS FFmpeg 说明](./skills/shuai-burn-video-subtitles/references/macos-ffmpeg.md)。
-- **平台支持**：当前默认烧录样式面向 macOS，使用 `Hiragino Sans GB`；其他平台需要调整字体文件和目录，尚未验证。
+- **字幕烧录**：需要 FFmpeg、ffprobe、Pillow，以及 FFmpeg 的 libass / `ass` 滤镜。配置见 [macOS / Windows 环境说明](./skills/shuai-burn-video-subtitles/references/environment.md)。
+- **平台支持**：macOS 默认使用 `Hiragino Sans GB`；Windows 自动寻找微软雅黑或黑体，也可通过 `--font-file` 指定中文字体。字幕布局规则一致，字形随字体变化。
 - **文字验收**：人名、术语和含混发音仍需对照原视频检查；完整烧录前先审核文字与短片样式。
 - **默认标点**：保留句内逗号，移除句尾标点，仅允许句尾省略号和感叹号；具体规则见 [SKILL.md](./skills/shuai-burn-video-subtitles/SKILL.md)。
 

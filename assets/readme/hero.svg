@@ -1,42 +1,36 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" role="img" aria-labelledby="title desc">
-  <title id="title">shuai-burn-video-subtitles — 把字幕改对，再烧进视频</title>
-  <desc id="desc">黑白字幕工作流示意：本地转写或复用 SRT，在浏览器中校对、合并和隐藏字幕，确认样式后输出带字幕的新 MP4。</desc>
-  <rect width="1200" height="560" rx="20" fill="#fafafa"/>
-  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" fill="#171717">
-    <g id="heading">
-      <text x="64" y="62" font-family="ui-monospace, 'SFMono-Regular', Menlo, monospace" font-size="26">shuai-burn-video-subtitles</text>
-      <text x="1136" y="62" text-anchor="end" font-size="20" fill="#666666" letter-spacing="2">AGENT SKILL</text>
-      <text x="64" y="148" font-size="62" font-weight="650" letter-spacing="-1">把字幕改对，再烧进视频。</text>
-      <text x="64" y="198" font-size="26" fill="#666666">中文口播 · 本地校对 · 先预览，再导出</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="440" viewBox="0 0 1200 440" role="img" aria-labelledby="title desc">
+  <title id="title">有视频，就能做字幕</title>
+  <desc id="desc">字幕生成示意：视频画面配上清晰的中文字幕。不需要提前准备 SRT，提供视频即可开始转写、校对和烧录。</desc>
+  <defs>
+    <clipPath id="frame-clip"><rect x="642" y="64" width="486" height="292" rx="12"/></clipPath>
+  </defs>
+  <rect width="1200" height="440" rx="20" fill="#f5f4f0"/>
+  <g id="promise" fill="#171717" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="76" font-weight="700" letter-spacing="-2">
+    <text x="64" y="178">有视频，</text>
+    <text x="64" y="272">就能做字幕。</text>
+  </g>
+  <g id="voice-track" fill="none" stroke="#96958f" stroke-width="4" stroke-linecap="round">
+    <path d="M68 344H102 M116 333V355 M130 322V366 M144 336V352 M158 313V375 M172 327V361 M186 337V351 M200 321V367 M214 330V358 M228 338V350 M242 326V362 M256 316V372 M270 332V356 M284 338V350 M298 329V359 M312 336V352 M326 344H414"/>
+    <path d="M444 344H480L469 333M480 344L469 355" stroke="#171717" stroke-width="2.5"/>
+  </g>
+  <g id="captioned-frame">
+    <rect x="626" y="80" width="486" height="292" rx="12" fill="#d7d6d0"/>
+    <g clip-path="url(#frame-clip)">
+      <rect x="642" y="64" width="486" height="292" fill="#292b2a"/>
+      <circle cx="1010" cy="126" r="33" fill="#bdbfb8"/>
+      <path d="M612 245L770 127L945 296L1158 211V390H612Z" fill="#61655e"/>
+      <path d="M612 296L818 207L1005 322L1158 270V390H612Z" fill="#3f443f"/>
+      <path d="M612 349L771 283L958 352L1158 315V390H612Z" fill="#1d2320"/>
     </g>
-    <path d="M64 236H1136" stroke="#d8d8d8"/>
-    <g id="transcription" transform="translate(64 266)">
-      <path d="M8 66H38 M48 48V84 M66 26V106 M84 42V90 M102 6V126 M120 30V102 M138 48V84 M156 14V118 M174 38V94 M192 52V80 M202 66H232" fill="none" stroke="#171717" stroke-width="5" stroke-linecap="round"/>
-      <text x="0" y="202" font-size="44" font-weight="600">转写</text>
-      <text x="0" y="245" font-size="24" fill="#666666">已有 SRT，直接复用</text>
+    <rect x="683" y="274" width="404" height="62" rx="8" fill="#171717" fill-opacity="0.88"/>
+    <text x="885" y="315" text-anchor="middle" fill="#fafafa" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="34" font-weight="600">让每句话，都被看见</text>
+    <g id="timeline" fill="#b9b8b1">
+      <rect x="642" y="398" width="92" height="6" rx="3"/>
+      <rect x="744" y="398" width="162" height="6" rx="3"/>
+      <rect x="916" y="398" width="72" height="6" rx="3"/>
+      <rect x="998" y="398" width="130" height="6" rx="3"/>
     </g>
-    <g id="review" transform="translate(457 266)">
-      <rect x="0" y="9" width="24" height="24" rx="4" fill="#171717"/>
-      <path d="M6 20L11 25L19 16" fill="none" stroke="#fafafa" stroke-width="2"/>
-      <text x="42" y="32" font-size="29">先校对字幕</text>
-      <rect x="0" y="63" width="24" height="24" rx="4" fill="#171717"/>
-      <path d="M6 74L11 79L19 70" fill="none" stroke="#fafafa" stroke-width="2"/>
-      <text x="42" y="86" font-size="29">再确认样式</text>
-      <path d="M0 118H228" stroke="#d8d8d8"/>
-      <text x="0" y="202" font-size="44" font-weight="600">校对</text>
-      <text x="0" y="245" font-size="24" fill="#666666">编辑 · 合并 · 隐藏 · 撤回</text>
-    </g>
-    <g id="burn-in" transform="translate(850 266)">
-      <rect width="286" height="148" rx="8" fill="#171717"/>
-      <path d="M132 36L132 72L162 54Z" fill="#fafafa"/>
-      <rect x="32" y="100" width="222" height="34" rx="5" fill="#383838"/>
-      <text x="143" y="124" text-anchor="middle" font-size="23" fill="#fafafa">先校对，再出片</text>
-      <text x="0" y="202" font-size="44" font-weight="600">烧录</text>
-      <text x="0" y="245" font-size="24" fill="#666666">输出带字幕的新 MP4</text>
-    </g>
-    <g id="flow" fill="none" stroke="#999999" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M352 332H402L391 321M402 332L391 343"/>
-      <path d="M747 332H797L786 321M797 332L786 343"/>
-    </g>
+    <path d="M838 386V416" stroke="#171717" stroke-width="2"/>
+    <circle cx="838" cy="384" r="4" fill="#171717"/>
   </g>
 </svg>

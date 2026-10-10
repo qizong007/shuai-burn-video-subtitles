@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -8,9 +9,10 @@ from pathlib import Path
 
 def pick_ffmpeg():
     candidates = [
+        os.environ.get("FFMPEG_BIN"),
+        shutil.which("ffmpeg"),
         "/opt/homebrew/bin/ffmpeg",
         "/usr/local/bin/ffmpeg",
-        shutil.which("ffmpeg"),
     ]
     for candidate in candidates:
         if not candidate:

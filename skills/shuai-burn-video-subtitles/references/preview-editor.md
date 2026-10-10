@@ -33,6 +33,8 @@ The default work directory is `<video-stem>.subtitle-work/` beside the video (or
 
 Background the process. Close stdin. Log to the work directory:
 
+The example below uses POSIX syntax. For PowerShell commands and Windows dependencies, see [environment.md](environment.md).
+
 ```bash
 python3 scripts/preview_editor.py \
   --video VIDEO.mp4 \

@@ -17,3 +17,6 @@ __pycache__/
 *.srt
 *.ass
 *.log
+
+# Local logo explorations and comparison previews
+/assets/brand-exploration/

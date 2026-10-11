@@ -28,6 +28,7 @@ from srt_io import (  # noqa: E402
 )
 
 HTML_PATH = SCRIPT_DIR.parent / "assets" / "preview.html"
+WORDMARK_PATH = SCRIPT_DIR.parent / "assets" / "brand" / "shuai-wordmark-ai.png"
 SAVED_NAME = "preview-saved.json"
 TRANSCRIPT_NAME = "subtitle-transcript.json"
 ORIG_NAME = "subtitle-transcript.json.orig.json"
@@ -211,6 +212,9 @@ def make_handler(video: Path, work_dir: Path) -> type[BaseHTTPRequestHandler]:
                 )
                 body = html.replace("__CACHE_KEY__", cache_key).encode("utf-8")
                 send_bytes(self, 200, body, "text/html; charset=utf-8")
+                return
+            if path == "/brand/shuai-wordmark-ai.png":
+                send_bytes(self, 200, WORDMARK_PATH.read_bytes(), "image/png")
                 return
             if path == "/manifest":
                 payload = json.loads((work_dir / MANIFEST_NAME).read_text(encoding="utf-8"))

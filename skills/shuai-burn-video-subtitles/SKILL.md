@@ -41,7 +41,7 @@ This writes `<stem>_polished_timestamped.txt` and `<stem>_polished_clean.txt`. U
 
 Open the local review page with the polished SRT. The editor strips terminal punctuation from each cue before display. Do not skip the review page unless the user says 直接烧录 / 不用审核.
 
-The monochrome review UI supports automatic local-time light/dark mode, a single sun/moon toggle, multi-selection, reversible hiding, merging adjacent cues, and undo/redo. See [references/preview-editor.md](references/preview-editor.md) for controls and save behavior.
+The monochrome review UI uses the approved **shuai** wordmark in its top-left header (see [references/brand.md](references/brand.md)). It supports automatic local-time light/dark mode, a single sun/moon toggle, multi-selection, reversible hiding, merging adjacent cues, and undo/redo. See [references/preview-editor.md](references/preview-editor.md) for controls and save behavior.
 
 ```bash
 WORK="input.subtitle-work"

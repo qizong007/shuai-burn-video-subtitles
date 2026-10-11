@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>字幕校对</title>
+<title>shuai · 字幕校对</title>
 <script>
 const THEME_KEY = "burn-subs:theme";
 let themePreference = "auto";
@@ -61,7 +61,21 @@ applyTheme();
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     height: 100vh;
     display: flex;
+    flex-direction: column;
   }
+  .app-header {
+    height: 52px; flex-shrink: 0; display: flex; align-items: center; gap: 16px;
+    padding: 0 12px; background: var(--surface); border-bottom: 1px solid var(--border);
+  }
+  .wordmark { position: relative; overflow: hidden; width: 96px; height: 38px; flex-shrink: 0; }
+  .wordmark img {
+    position: absolute; width: 124px; height: auto; max-width: none;
+    left: 50%; top: 50%; transform: translate(-50%, -50%); mix-blend-mode: multiply;
+  }
+  :root[data-theme="dark"] .wordmark img { filter: invert(1); mix-blend-mode: screen; }
+  .app-title { padding-left: 16px; border-left: 1px solid var(--border); color: var(--muted); font-size: 12px; }
+  .app-actions { margin-left: auto; display: flex; align-items: center; }
+  .workspace { flex: 1; min-height: 0; display: flex; }
   .video-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   .video-wrap {
     flex: 1; min-height: 0; background: #000;
@@ -100,12 +114,11 @@ applyTheme();
     border-left: 1px solid var(--border);
     display: flex; flex-direction: column;
   }
-  .panel-header, .list-header, .panel-footer, .find-bar {
+  .list-header, .panel-footer, .find-bar {
     padding: 10px 12px; border-bottom: 1px solid var(--border);
     display: flex; align-items: center; gap: 8px; flex-shrink: 0;
   }
   .panel-footer { border-bottom: 0; border-top: 1px solid var(--border); flex-direction: column; align-items: stretch; }
-  .brand { font-size: 13px; font-weight: 700; flex: 1; }
   .btn {
     padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border);
     background: transparent; color: var(--text); font-size: 12px; cursor: pointer;
@@ -130,9 +143,9 @@ applyTheme();
     background: var(--surface); color: var(--text);
   }
   .find-bar input::placeholder { color: var(--muted); }
-  .list-header { font-size: 12px; color: var(--muted); }
-  #listInfo { flex: 1; }
-  .history-controls { display: flex; gap: 4px; }
+  .list-header { font-size: 12px; color: var(--muted); flex-wrap: wrap; gap: 6px; min-height: 49px; }
+  #listInfo { flex: 1; white-space: nowrap; }
+  .history-controls { display: flex; gap: 2px; padding-left: 6px; border-left: 1px solid var(--border); }
   .subtitle-list { flex: 1; overflow: auto; }
   .sub-item {
     display: grid; grid-template-columns: 18px 78px minmax(0, 1fr) 68px;
@@ -158,6 +171,17 @@ applyTheme();
 </style>
 </head>
 <body>
+  <header class="app-header">
+    <div class="wordmark"><img src="/brand/shuai-wordmark-ai.png" alt="shuai" width="1774" height="887"></div>
+    <span class="app-title">字幕工作台</span>
+    <div class="app-actions" role="group" aria-label="工作台设置">
+      <button class="icon-btn" id="btnTheme" aria-label="切换主题">
+        <svg class="theme-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
+        <svg class="theme-moon" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M20.5 14A8.5 8.5 0 0 1 10 3.5 8.5 8.5 0 1 0 20.5 14Z"/></svg>
+      </button>
+    </div>
+  </header>
+  <main class="workspace">
   <div class="video-pane">
     <div class="video-wrap">
       <video id="vid" controls src="/video"></video>
@@ -169,15 +193,15 @@ applyTheme();
     </div>
   </div>
   <div class="list-pane">
-    <div class="panel-header">
-      <span class="brand">字幕校对</span>
-      <button class="icon-btn" id="btnTheme" aria-label="切换主题">
-        <svg class="theme-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
-        <svg class="theme-moon" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M20.5 14A8.5 8.5 0 0 1 10 3.5 8.5 8.5 0 1 0 20.5 14Z"/></svg>
-      </button>
+    <div class="list-header" role="group" aria-label="字幕操作">
+      <span id="listInfo" aria-live="polite"></span>
       <button class="btn" id="btnFind" aria-expanded="false" aria-controls="findBar">查找</button>
       <button class="btn" id="btnMerge" hidden>合并</button>
-      <button class="btn" id="btnHideSelected" disabled>隐藏</button>
+      <button class="btn" id="btnHideSelected" disabled hidden>隐藏</button>
+      <div class="history-controls" role="group" aria-label="操作历史">
+        <button class="icon-btn" id="btnUndo" aria-label="撤回" title="撤回（Cmd/Ctrl+Z）" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5-5 5 5 5M4 10h10a6 6 0 0 1 0 12" transform="translate(0 -2)"/></svg></button>
+        <button class="icon-btn" id="btnRedo" aria-label="重做" title="重做（Cmd/Ctrl+Y）" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 5 5-5 5m5-5H10a6 6 0 0 0 0 12" transform="translate(0 -2)"/></svg></button>
+      </div>
     </div>
     <div class="find-bar" id="findBar">
       <input id="findInput" placeholder="查找">
@@ -185,19 +209,13 @@ applyTheme();
       <button class="btn" id="btnReplaceOne">替换下一个</button>
       <button class="btn" id="btnReplaceAll">全部替换</button>
     </div>
-    <div class="list-header">
-      <span id="listInfo"></span>
-      <div class="history-controls" role="group" aria-label="操作历史">
-        <button class="icon-btn" id="btnUndo" aria-label="撤回" title="撤回（Cmd/Ctrl+Z）" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5-5 5 5 5M4 10h10a6 6 0 0 1 0 12" transform="translate(0 -2)"/></svg></button>
-        <button class="icon-btn" id="btnRedo" aria-label="重做" title="重做（Cmd/Ctrl+Y）" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 5 5-5 5m5-5H10a6 6 0 0 0 0 12" transform="translate(0 -2)"/></svg></button>
-      </div>
-    </div>
     <div class="subtitle-list" id="list"></div>
     <div class="panel-footer">
       <div class="panel-status" id="statusText">单击跳转，双击编辑，Cmd/Ctrl+F 查找</div>
       <button class="btn save" id="btnSave">保存并关闭</button>
     </div>
   </div>
+  </main>
 <script>
 const LS_KEY = __CACHE_KEY__;
 let segments = [];
@@ -417,8 +435,11 @@ function toggleHidden(id) {
 function updateInfo() {
   const total = segments.length;
   const vis = visibleSegments().length;
-  listInfo.textContent = `共 ${total} 条 · 已选 ${selectedIds.size} · 隐藏 ${total - vis}`;
+  listInfo.textContent = `共 ${total} 条`
+    + (selectedIds.size ? ` · 已选 ${selectedIds.size}` : "")
+    + (total - vis ? ` · 隐藏 ${total - vis}` : "");
   document.getElementById("btnMerge").hidden = !mergeableSelection();
+  document.getElementById("btnHideSelected").hidden = selectedIds.size === 0;
   document.getElementById("btnHideSelected").disabled = !segments.some(s => selectedIds.has(s._id) && !s.hidden);
 }
 

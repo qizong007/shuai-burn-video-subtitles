@@ -4,13 +4,15 @@
 
 ## Appearance and cue highlighting
 
-The monochrome review page defaults to the browser's local clock: light from 07:00 (inclusive) to 19:00 (exclusive), dark otherwise. It refreshes every minute and when focus or visibility returns. A single borderless button shows the current sun/moon icon; clicking toggles light/dark with a persistent manual override. Right-click it to resume automatic mode. This affects the editor UI only, not the burned subtitle style.
+The top-left header uses the **shuai** wordmark in `assets/brand/shuai-wordmark-ai.png`, with the requested underline beneath **ai**. Keep the geometric lowercase lettering and the shorter underline. Render the same artwork in black for light mode and white for dark mode. Keep this branding in the editor UI only, never in the video or burned subtitles. See [brand.md](brand.md) for the asset and usage rules.
+
+The monochrome review page defaults to the browser's local clock: light from 07:00 (inclusive) to 19:00 (exclusive), dark otherwise. It refreshes every minute and when focus or visibility returns. A single borderless button in the top-right app header shows the current sun/moon icon; clicking toggles light/dark with a persistent manual override. Right-click it to resume automatic mode. This affects the editor UI only, not the burned subtitle style. The right pane has one compact toolbar containing cue counts, find, selection actions, and undo/redo; do not repeat the workspace title there. Selection and hidden counts appear only when nonzero, and batch hide appears only with a selection.
 
 Cue highlighting and the video overlay use `[start, end)` intervals. At a shared boundary, the next cue is active. Clicking a cue seeks to its start and immediately updates both; seeking and playback keep them synchronized. Gaps and hidden cues show no active subtitle.
 
 ## Selection, hiding, and merging
 
-- Row checkboxes only select cues; they do not hide them. The header's **隐藏** hides selected cues, and each eye icon toggles a cue's visibility. Hidden rows remain dimmed in the list and can be restored, including after saving and reopening.
+- Row checkboxes only select cues; they do not hide them. The subtitle toolbar's **隐藏** appears after selecting cues and hides the selection; each eye icon toggles a cue's visibility. Hidden rows remain dimmed in the list and can be restored, including after saving and reopening.
 - **合并** appears only for two or more selected, visible cues in consecutive list positions. It replaces them with one cue spanning the first start to the last end, joining their text in order with spaces. Hidden or unselected intervening rows prevent merging.
 - **查找** and Cmd/Ctrl+F toggle the same search/replace panel. Escape dismisses it. There is no select-all control.
 - Edits, merges, and visibility changes are cached as a browser draft until saved; selection is temporary.

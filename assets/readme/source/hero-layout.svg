@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="440" viewBox="0 0 1200 440" role="img" aria-labelledby="title desc">
+  <title id="title">shuai · 有视频，就能做字幕</title>
+  <desc id="desc">带 ai 下划线的 shuai 字标，以及新版字幕工作台示意：主题切换位于顶栏，右侧使用单条字幕工具栏。</desc>
+  <defs>
+    <filter id="wordmark-ink" color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -0.2126 -0.7152 -0.0722 0 1"/>
+    </filter>
+    <g id="wordmark">
+      <image href="hero-wordmark.png" width="1774" height="887" filter="url(#wordmark-ink)"/>
+    </g>
+    <clipPath id="window-clip"><rect x="620" y="48" width="516" height="344" rx="12"/></clipPath>
+    <clipPath id="video-clip"><rect x="620" y="106" width="332" height="286"/></clipPath>
+  </defs>
+  <rect width="1200" height="440" rx="20" fill="#f5f4f0"/>
+  <svg x="64" y="40" width="148" height="58" viewBox="260 195 1245 480">
+    <use href="#wordmark"/>
+  </svg>
+  <g id="promise" fill="#171717" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="76" font-weight="700" letter-spacing="-2">
+    <text x="64" y="192">有视频，</text>
+    <text x="64" y="286">就能做字幕。</text>
+  </g>
+  <g id="voice-track" fill="none" stroke="#96958f" stroke-width="4" stroke-linecap="round">
+    <path d="M68 354H102 M116 343V365 M130 332V376 M144 346V362 M158 323V385 M172 337V371 M186 347V361 M200 331V377 M214 340V368 M228 348V360 M242 336V372 M256 326V382 M270 342V366 M284 348V360 M298 339V369 M312 346V362 M326 354H414"/>
+    <path d="M444 354H480L469 343M480 354L469 365" stroke="#171717" stroke-width="2.5"/>
+  </g>
+  <g id="subtitle-workbench" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif">
+    <rect x="626" y="56" width="516" height="344" rx="12" fill="#d7d6d0"/>
+    <g clip-path="url(#window-clip)">
+      <rect x="620" y="48" width="516" height="344" fill="#fff"/>
+      <svg x="638" y="64" width="76" height="29" viewBox="260 195 1245 480"><use href="#wordmark"/></svg>
+      <path d="M731 68V89" stroke="#dedede"/>
+      <text x="746" y="85" fill="#666" font-size="18">字幕工作台</text>
+      <g id="theme-toggle" transform="translate(1108 77)" fill="none" stroke="#666" stroke-width="1.6" stroke-linecap="round">
+        <circle r="5"/>
+        <path d="M0-12V-9M0 9V12M-12 0H-9M9 0H12M-8-8L-6-6M6 6L8 8M-8 8L-6 6M6-6L8-8"/>
+      </g>
+      <path d="M620 106H1136" stroke="#dedede"/>
+      <g clip-path="url(#video-clip)">
+        <rect x="620" y="106" width="332" height="286" fill="#292b2a"/>
+        <circle cx="878" cy="159" r="25" fill="#bdbfb8"/>
+        <path d="M600 281L710 161L840 288L970 209V400H600Z" fill="#61655e"/>
+        <path d="M600 320L755 245L865 332L970 289V400H600Z" fill="#3f443f"/>
+        <path d="M600 376L711 316L841 370L970 336V400H600Z" fill="#1d2320"/>
+      </g>
+      <rect x="647" y="315" width="278" height="42" rx="7" fill="#171717" fill-opacity="0.88"/>
+      <text x="786" y="343" text-anchor="middle" fill="#fafafa" font-size="23" font-weight="600">让每句话，都被看见</text>
+      <path d="M641 375H930" stroke="#ffffff" stroke-opacity="0.28" stroke-width="2"/>
+      <path d="M641 375H760" stroke="#fff" stroke-width="2"/>
+      <circle cx="760" cy="375" r="3" fill="#fff"/>
+      <g id="cue-toolbar">
+        <text x="968" y="134" fill="#666" font-size="18">共 3 条</text>
+        <g fill="none" stroke="#777" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="1073" cy="127" r="5"/><path d="M1077 131L1082 136M1100 123L1096 127L1100 131M1096 127H1105Q1113 127 1113 135"/>
+        </g>
+        <path d="M952 150H1136" stroke="#dedede"/>
+      </g>
+      <rect x="952" y="211" width="184" height="61" fill="#ededed"/>
+      <path d="M954 212V271" stroke="#171717" stroke-width="3"/>
+      <g fill="none" stroke="#aaa" stroke-width="1.4">
+        <rect x="968" y="175" width="12" height="12" rx="2"/>
+        <rect x="968" y="236" width="12" height="12" rx="2"/>
+        <rect x="968" y="297" width="12" height="12" rx="2"/>
+      </g>
+      <g fill="#171717" font-size="20">
+        <text x="991" y="189">打开这段视频</text>
+        <text x="991" y="250">让每句话</text>
+        <text x="991" y="311">都被看见</text>
+      </g>
+      <path d="M952 211H1136M952 272H1136M952 333H1136M952 106V392" stroke="#dedede"/>
+      <rect x="966" y="351" width="156" height="28" rx="5" fill="#171717"/>
+      <text x="1044" y="371" text-anchor="middle" fill="#fff" font-size="16" font-weight="600">保存并关闭</text>
+    </g>
+  </g>
+</svg>

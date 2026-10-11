@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/readme/hero.svg" width="100%" alt="shuai-burn-video-subtitles：有视频，就能做字幕；自动转写、网页校对并导出带字幕的视频">
+  <img src="./assets/readme/hero.png" width="100%" alt="shuai 品牌字幕工具：有视频，就能做字幕；新版工作台示意，主题切换位于顶栏，右侧集中校对字幕">
 </p>
 
 <h1 align="center">shuai-burn-video-subtitles</h1>

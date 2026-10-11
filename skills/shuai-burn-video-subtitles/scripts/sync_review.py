@@ -34,7 +34,7 @@ def main() -> None:
         raise SystemExit(f"Missing {transcript}")
     if not saved.is_file() and not args.allow_unsaved:
         raise SystemExit(
-            f"No {SAVED_NAME}. Wait until the user clicks 保存并关闭, or pass --allow-unsaved."
+            f"No {SAVED_NAME}. Wait until the user clicks 保存, or pass --allow-unsaved."
         )
 
     after = load_segments(transcript)

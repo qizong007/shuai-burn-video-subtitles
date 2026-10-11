@@ -18,5 +18,7 @@ __pycache__/
 *.ass
 *.log
 
-# Local logo explorations and comparison previews
+# Private design sources, explorations, and comparison previews
+/.local-design/
 /assets/brand-exploration/
+/assets/readme/source/

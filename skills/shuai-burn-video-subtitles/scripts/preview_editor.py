@@ -28,7 +28,10 @@ from srt_io import (  # noqa: E402
 )
 
 HTML_PATH = SCRIPT_DIR.parent / "assets" / "preview.html"
-WORDMARK_PATH = SCRIPT_DIR.parent / "assets" / "brand" / "shuai-wordmark-ai.png"
+BRAND_ASSETS = {
+    f"/brand/{name}": SCRIPT_DIR.parent / "assets" / "brand" / name
+    for name in ("shuai-wordmark.png", "shuai-wordmark-dark.png")
+}
 SAVED_NAME = "preview-saved.json"
 TRANSCRIPT_NAME = "subtitle-transcript.json"
 ORIG_NAME = "subtitle-transcript.json.orig.json"
@@ -213,8 +216,8 @@ def make_handler(video: Path, work_dir: Path) -> type[BaseHTTPRequestHandler]:
                 body = html.replace("__CACHE_KEY__", cache_key).encode("utf-8")
                 send_bytes(self, 200, body, "text/html; charset=utf-8")
                 return
-            if path == "/brand/shuai-wordmark-ai.png":
-                send_bytes(self, 200, WORDMARK_PATH.read_bytes(), "image/png")
+            if path in BRAND_ASSETS:
+                send_bytes(self, 200, BRAND_ASSETS[path].read_bytes(), "image/png")
                 return
             if path == "/manifest":
                 payload = json.loads((work_dir / MANIFEST_NAME).read_text(encoding="utf-8"))
@@ -325,7 +328,7 @@ def main() -> None:
     url = f"http://{args.host}:{port}/"
     print(f"Preview: {url}")
     print(f"PID file: {pid_path}")
-    print("Click 保存并关闭 after review. Do not treat prepare files as user confirmation.")
+    print("Click 保存 after review. Do not treat prepare files as user confirmation.")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -4,11 +4,13 @@
 
 ## Appearance and cue highlighting
 
-The top-left header uses the **shuai** wordmark in `assets/brand/shuai-wordmark-ai.png`, with the requested underline beneath **ai**. Keep the geometric lowercase lettering and the shorter underline. Render the same artwork in black for light mode and white for dark mode. Keep this branding in the editor UI only, never in the video or burned subtitles. See [brand.md](brand.md) for the asset and usage rules.
+The top-left header uses the **shuai** wordmark in `assets/brand/shuai-wordmark.png`, with the requested underline beneath **ai**. Keep the geometric lowercase lettering and the shorter underline. Use the black-letter artwork for light mode and `assets/brand/shuai-wordmark-dark.png` for dark mode. The i dot stays red in both themes; never invert the full image. Keep this branding in the editor UI only, never in the video or burned subtitles. See [brand.md](brand.md) for the asset and usage rules.
 
 The monochrome review page defaults to the browser's local clock: light from 07:00 (inclusive) to 19:00 (exclusive), dark otherwise. It refreshes every minute and when focus or visibility returns. A single borderless button in the top-right app header shows the current sun/moon icon; clicking toggles light/dark with a persistent manual override. Right-click it to resume automatic mode. This affects the editor UI only, not the burned subtitle style. The right pane has one compact toolbar containing cue counts, find, selection actions, and undo/redo; do not repeat the workspace title there. Selection and hidden counts appear only when nonzero, and batch hide appears only with a selection.
 
 Cue highlighting and the video overlay use `[start, end)` intervals. At a shared boundary, the next cue is active. Clicking a cue seeks to its start and immediately updates both; seeking and playback keep them synchronized. Gaps and hidden cues show no active subtitle.
+
+Each cue shows its start and end on separate centered lines with a short vertical divider between them. Keep the row checkbox vertically centered, including for multiline cue text.
 
 ## Selection, hiding, and merging
 
@@ -23,9 +25,9 @@ The two arrows beside the cue count undo and redo committed text edits, replacem
 
 Outside text fields, Cmd/Ctrl+Z undoes and Cmd/Ctrl+Y redoes. Text fields and active cue editing retain the browser's native text undo. Click outside the text to commit it as one workbench operation.
 
-## What 保存并关闭 does
+## What 保存 does
 
-The page commits the active text edit, saves **all** cues and their `hidden` flags to `subtitle-transcript.json`, writes `manual-edit-review.json` and `preview-saved.json`, clears its browser draft, then attempts to close its tab. If the browser blocks closing, the saved confirmation remains visible. Failed saves keep the draft and allow retrying.
+The page commits the active text edit, saves **all** cues and their `hidden` flags to `subtitle-transcript.json`, and writes `manual-edit-review.json` and `preview-saved.json`. It stays open, shows a confirmation, and re-enables 保存 so the user can continue editing and save again. A successful save clears the browser draft only if no newer edits were made while the request was pending; newer edits and failed saves keep the draft.
 
 The button does not write the SRT, encode video, or stop the server. Run `sync_review.py` after review to write only visible cues to the polished SRT; hidden cues remain in the work JSON for restoration. Regenerate transcript views and obtain subtitle-style approval before the full burn as usual. A sample preview saves only its own sample work directory.
 
@@ -52,16 +54,13 @@ Verify before sending a URL:
 - `GET /` returns HTML
 - `GET /manifest` video, duration, cue language
 - `GET /api/transcript` first cue and count
-- `GET /api/status` has `"saved": false` until the user clicks 保存并关闭
+- `GET /api/status` has `"saved": false` until the user clicks 保存
 
 If the preferred port is busy, the script picks the next free port in a +9 window and prints `Preview: http://127.0.0.1:PORT/`. Use that URL.
 
 ## Wait for the user
 
-`subtitle-transcript.json` written during prepare is not a save. Continue only when:
-
-1. the user says they saved / 可以烧了, or
-2. `GET /api/status` shows `"saved": true` **and** `preview-saved.json` exists after the review page was already live
+`subtitle-transcript.json` written during prepare is not a save. 保存 keeps the editor open, so `GET /api/status` showing `"saved": true` and an existing `preview-saved.json` confirms persistence only; it does not mean the user has finished reviewing. Wait until the user confirms the review is complete / 可以继续 / 可以烧了, and ensure their latest edits have been saved before syncing or burning.
 
 Then run `scripts/sync_review.py` to write the polished SRT and print the diff. Do not write glossary files. One-off wording fixes stay in the SRT only.
 

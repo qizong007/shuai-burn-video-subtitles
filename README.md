@@ -50,7 +50,7 @@ CLI 会让你选择目标 Agent 和安装范围。安装完成后，提供本地
 
 ## 支持的操作
 
-校对页顶部显示 shuai 字标、工具名与主题切换，左侧播放视频，右侧用单条工具栏管理字幕。点击字幕即可定位到对应画面；选中字幕后显示批量操作。
+校对页顶部显示红色 i 圆点的 shuai 字标、工具名与主题切换，左侧播放视频，右侧用单条工具栏管理字幕。点击字幕即可定位到对应画面；选中字幕后显示批量操作。
 
 | 操作 | 用法 |
 | --- | --- |
@@ -92,7 +92,7 @@ python3 "$SKILL/scripts/preview_editor.py" \
 
 打开终端打印的本地 URL，通常为 `http://127.0.0.1:8765/`；端口被占用时会选择后续可用端口。关闭终端或中断进程会停止服务。重新审核时沿用同一工作目录；`--reset` 会重建工作记录。
 
-点击「保存并关闭」后，运行以下命令同步字幕和文稿：
+点击「保存」后，运行以下命令同步字幕和文稿：
 
 ```bash
 python3 "$SKILL/scripts/sync_review.py" \
@@ -123,18 +123,18 @@ python3 "$SKILL/scripts/write_transcript_views.py" \
 └── input_subtitled.mp4              # 带字幕的完整视频
 ```
 
-**「保存并关闭」只保存校对记录；SRT 同步和视频导出由后续步骤完成。**
+**「保存」只保存校对记录；SRT 同步和视频导出由后续步骤完成。**
 
 | 步骤 | 文件变化 |
 | --- | --- |
-| 保存并关闭 | 在工作目录写入或覆盖 `subtitle-transcript.json`、`manual-edit-review.json` 和 `preview-saved.json` |
+| 保存 | 在工作目录写入或覆盖 `subtitle-transcript.json`、`manual-edit-review.json` 和 `preview-saved.json` |
 | 同步字幕 | `sync_review.py` 将可见字幕写入 `--srt` 指定的文件；正常流程更新 `input_polished.srt` |
 | 更新文稿 | 根据校对 SRT 更新带时间戳和纯文本两份 TXT |
 | 预览与烧录 | 分别生成短片预览和带字幕的新 MP4 |
 
 隐藏的字幕仍保留在工作 JSON 中，可在重开校对页后恢复。同步会覆盖指定 SRT，须使用校对副本路径；原始 `input.srt` 保留。
 
-保存成功后会清除浏览器草稿，并尝试关闭页面；浏览器阻止关闭时保留成功提示，本地服务继续运行。
+保存后页面保持打开，可以继续编辑、再次保存。保存期间产生的新修改会保留为浏览器草稿；完成审核并保存最新修改后，再告诉 Agent 继续同步或导出。
 
 ## 环境与能力边界
 
@@ -157,7 +157,7 @@ shuai-burn-video-subtitles/
     ├── SKILL.md                        # 工作流、默认值与验收标准
     ├── agents/openai.yaml              # Skill 展示元数据
     ├── assets/preview.html             # 网页校对界面
-    ├── assets/brand/                   # shuai 字标，使用已确认的 ai 下划线版
+    ├── assets/brand/                   # shuai 字标，红色 i 圆点与 ai 下划线
     ├── references/                     # 校对与环境说明
     └── scripts/                        # 转写、同步、文稿与烧录脚本
 ```

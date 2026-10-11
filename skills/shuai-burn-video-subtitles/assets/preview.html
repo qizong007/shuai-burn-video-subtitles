@@ -72,7 +72,9 @@ applyTheme();
     position: absolute; width: 124px; height: auto; max-width: none;
     left: 50%; top: 50%; transform: translate(-50%, -50%); mix-blend-mode: multiply;
   }
-  :root[data-theme="dark"] .wordmark img { filter: invert(1); mix-blend-mode: screen; }
+  .wordmark .wordmark-dark { display: none; mix-blend-mode: screen; }
+  :root[data-theme="dark"] .wordmark .wordmark-light { display: none; }
+  :root[data-theme="dark"] .wordmark .wordmark-dark { display: block; }
   .app-title { padding-left: 16px; border-left: 1px solid var(--border); color: var(--muted); font-size: 12px; }
   .app-actions { margin-left: auto; display: flex; align-items: center; }
   .workspace { flex: 1; min-height: 0; display: flex; }
@@ -150,13 +152,19 @@ applyTheme();
   .sub-item {
     display: grid; grid-template-columns: 18px 78px minmax(0, 1fr) 68px;
     gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--border);
-    cursor: pointer; align-items: start;
+    cursor: pointer; align-items: center;
   }
   .sub-item:hover { background: var(--hover); }
   .sub-item.current { background: var(--current); box-shadow: inset 3px 0 var(--accent); }
   .sub-item.selected { outline: 1px solid var(--muted); outline-offset: -1px; }
   .sub-item.is-hidden .sub-text { color: var(--muted); opacity: .65; }
-  .sub-times { font-size: 10px; color: var(--muted); line-height: 1.4; }
+  .sub-item > input[type="checkbox"] { justify-self: center; margin: 0; }
+  .sub-times {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    font-size: 10px; color: var(--muted); line-height: 1.2;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .time-divider { width: 1px; height: 8px; background: var(--muted); opacity: .5; }
   .sub-text { font-size: 13px; line-height: 1.45; min-height: 1.4em; outline: none; }
   .sub-actions { display: flex; gap: 12px; }
   .icon-btn {
@@ -172,7 +180,7 @@ applyTheme();
 </head>
 <body>
   <header class="app-header">
-    <div class="wordmark"><img src="/brand/shuai-wordmark-ai.png" alt="shuai" width="1774" height="887"></div>
+    <div class="wordmark"><img class="wordmark-light" src="/brand/shuai-wordmark.png" alt="shuai" width="1774" height="887"><img class="wordmark-dark" src="/brand/shuai-wordmark-dark.png" alt="shuai" width="1774" height="887"></div>
     <span class="app-title">字幕工作台</span>
     <div class="app-actions" role="group" aria-label="工作台设置">
       <button class="icon-btn" id="btnTheme" aria-label="切换主题">
@@ -212,7 +220,7 @@ applyTheme();
     <div class="subtitle-list" id="list"></div>
     <div class="panel-footer">
       <div class="panel-status" id="statusText">单击跳转，双击编辑，Cmd/Ctrl+F 查找</div>
-      <button class="btn save" id="btnSave">保存并关闭</button>
+      <button class="btn save" id="btnSave">保存</button>
     </div>
   </div>
   </main>
@@ -266,13 +274,10 @@ function insertMarks(text, needle) {
   if (!needle) return escapeHtml(text);
   return escapeHtml(text).replace(new RegExp(escapeRe(needle), "gi"), m => `<mark>${m}</mark>`);
 }
-function fmtSeg(seg) {
-  const fmt = s => {
-    const m = Math.floor(s / 60);
-    const sec = (s % 60).toFixed(2).padStart(5, "0");
-    return `${m}:${sec}`;
-  };
-  return `${fmt(seg.start)} → ${fmt(seg.end)}`;
+function fmt(s) {
+  const m = Math.floor(s / 60);
+  const sec = (s % 60).toFixed(2).padStart(5, "0");
+  return `${m}:${sec}`;
 }
 function visibleSegments() {
   return segments.filter(s => !s.hidden);
@@ -364,7 +369,15 @@ function render() {
 
     const times = document.createElement("div");
     times.className = "sub-times";
-    times.textContent = fmtSeg(seg);
+    times.setAttribute("aria-label", `开始 ${fmt(seg.start)}，结束 ${fmt(seg.end)}`);
+    const startTime = document.createElement("span");
+    startTime.textContent = fmt(seg.start);
+    const divider = document.createElement("span");
+    divider.className = "time-divider";
+    divider.setAttribute("aria-hidden", "true");
+    const endTime = document.createElement("span");
+    endTime.textContent = fmt(seg.end);
+    times.append(startTime, divider, endTime);
 
     const textEl = document.createElement("div");
     textEl.className = "sub-text";
@@ -583,6 +596,7 @@ document.getElementById("btnSave").addEventListener("click", async () => {
   const active = document.activeElement;
   if (active && active.classList.contains("sub-text")) active.blur();
   const toSave = segments.map(({ _id, ...rest }) => rest);
+  const savedContent = JSON.stringify(toSave);
   const saveBtn = document.getElementById("btnSave");
   saveBtn.disabled = true;
   statusTxt.textContent = "正在保存…";
@@ -594,11 +608,15 @@ document.getElementById("btnSave").addEventListener("click", async () => {
     });
     if (!res.ok) throw new Error("Save failed");
     const result = await res.json();
-    try { localStorage.removeItem(LS_KEY); } catch (_) {}
-    statusTxt.textContent = `已保存 ${toSave.length} 条（隐藏 ${result.hidden || 0} 条）。可关闭此页并告诉 Agent 继续同步 SRT`;
-    window.close();
+    const hasNewEdits = JSON.stringify(segments.map(({ _id, ...rest }) => rest)) !== savedContent;
+    if (!hasNewEdits) {
+      try { localStorage.removeItem(LS_KEY); } catch (_) {}
+    }
+    statusTxt.textContent = `已保存 ${toSave.length} 条（隐藏 ${result.hidden || 0} 条）`
+      + (hasNewEdits ? "，还有新修改未保存" : "，可继续编辑");
   } catch (_) {
     statusTxt.textContent = "保存失败，请重试";
+  } finally {
     saveBtn.disabled = false;
   }
 });

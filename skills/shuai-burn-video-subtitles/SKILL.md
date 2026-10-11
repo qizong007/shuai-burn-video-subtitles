@@ -41,7 +41,7 @@ This writes `<stem>_polished_timestamped.txt` and `<stem>_polished_clean.txt`. U
 
 Open the local review page with the polished SRT. The editor strips terminal punctuation from each cue before display. Do not skip the review page unless the user says 直接烧录 / 不用审核.
 
-The monochrome review UI uses the approved **shuai** wordmark in its top-left header (see [references/brand.md](references/brand.md)). It supports automatic local-time light/dark mode, a single sun/moon toggle, multi-selection, reversible hiding, merging adjacent cues, and undo/redo. See [references/preview-editor.md](references/preview-editor.md) for controls and save behavior.
+The review UI uses the approved **shuai** wordmark with a red i dot in its top-left header (see [references/brand.md](references/brand.md)). It supports automatic local-time light/dark mode, a single sun/moon toggle, multi-selection, reversible hiding, merging adjacent cues, and undo/redo. See [references/preview-editor.md](references/preview-editor.md) for controls and save behavior.
 
 ```bash
 WORK="input.subtitle-work"
@@ -51,7 +51,7 @@ python3 "$SKILL/scripts/preview_editor.py" \
   --work-dir "$WORK"
 ```
 
-Start the command in the background, verify `/`, `/manifest`, `/api/transcript`, and `/api/status`, then give the user the printed URL. Tell them to review the video and captions, edit wording and timing, click **保存并关闭**, and tell you when done. Wait for their confirmation or a genuine saved state as described in [references/preview-editor.md](references/preview-editor.md). Preparing the page is not a save.
+Start the command in the background, verify `/`, `/manifest`, `/api/transcript`, and `/api/status`, then give the user the printed URL. Tell them to review the video and captions, edit wording and timing, click **保存**, and tell you when done. 保存 keeps the editor open for continued editing and repeated saves. Wait for their confirmation that review is complete and the latest edits are saved, as described in [references/preview-editor.md](references/preview-editor.md); a saved state alone is not permission to sync or burn. Preparing the page is not a save.
 
 After saving, sync edits and show the diff. Then update the polished transcript views:
 

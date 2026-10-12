@@ -724,6 +724,20 @@ srtSelect.addEventListener("focus", async () => {
   } catch (_) {}
 });
 
+function fileWriteUnavailable(error) {
+  return ["NotAllowedError", "SecurityError", "NotSupportedError"].includes(error.name);
+}
+function downloadSrt(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 saveAsBtn.addEventListener("click", async () => {
   if (fileBusy) return;
   commitActiveEdit();
@@ -732,28 +746,37 @@ saveAsBtn.addEventListener("click", async () => {
   setFileBusy(true);
   try {
     let handle = null;
+    let downloadFallback = false;
     if (window.showSaveFilePicker) {
-      handle = await window.showSaveFilePicker({
-        suggestedName: name,
-        types: [{ description: "SRT 字幕", accept: { "application/x-subrip": [".srt"] } }]
-      });
+      try {
+        handle = await window.showSaveFilePicker({
+          suggestedName: name,
+          types: [{ description: "SRT 字幕", accept: { "application/x-subrip": [".srt"] } }]
+        });
+      } catch (error) {
+        if (!fileWriteUnavailable(error)) throw error;
+        downloadFallback = true;
+      }
     }
     const res = await postJSON("/api/export", { segments: toExport });
     const blob = await res.blob();
+    const filename = handle?.name || name;
     if (handle) {
-      const writable = await handle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      statusTxt.textContent = `已另存为 ${handle.name}`;
-    } else {
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = name;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      statusTxt.textContent = `已发起下载 ${name}`;
+      let writable = null;
+      try {
+        writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        statusTxt.textContent = `已另存为 ${filename}`;
+        return;
+      } catch (error) {
+        if (writable) { try { await writable.abort(); } catch (_) {} }
+        if (!fileWriteUnavailable(error)) throw error;
+        downloadFallback = true;
+      }
     }
+    downloadSrt(blob, filename);
+    statusTxt.textContent = (downloadFallback ? "浏览器限制直接写入，已改为下载 " : "已发起下载 ") + filename;
   } catch (error) {
     statusTxt.textContent = error.name === "AbortError" ? "已取消另存为" : `另存为失败：${error.message}`;
   } finally {

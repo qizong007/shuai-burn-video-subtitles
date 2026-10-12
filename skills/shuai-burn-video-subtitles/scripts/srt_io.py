@@ -57,7 +57,7 @@ def srt_timestamp(seconds: float) -> str:
     return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
 
 
-def write_srt(cues: list[dict], path: Path) -> None:
+def format_srt(cues: list[dict]) -> str:
     blocks = []
     for index, cue in enumerate(cues, start=1):
         text = strip_terminal_punctuation(str(cue.get("text") or "").strip())
@@ -66,7 +66,11 @@ def write_srt(cues: list[dict], path: Path) -> None:
         blocks.append(
             f"{index}\n{srt_timestamp(float(cue['start']))} --> {srt_timestamp(float(cue['end']))}\n{text}"
         )
-    path.write_text("\n\n".join(blocks) + ("\n" if blocks else ""), encoding="utf-8")
+    return "\n\n".join(blocks) + ("\n" if blocks else "")
+
+
+def write_srt(cues: list[dict], path: Path) -> None:
+    path.write_text(format_srt(cues), encoding="utf-8")
 
 
 def parse_chapters_md(path: Path, duration: float) -> list[dict]:

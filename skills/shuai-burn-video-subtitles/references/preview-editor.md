@@ -31,6 +31,14 @@ The page commits the active text edit, saves **all** cues and their `hidden` fla
 
 The button does not write the SRT, encode video, or stop the server. Run `sync_review.py` after review to write only visible cues to the polished SRT; hidden cues remain in the work JSON for restoration. Regenerate transcript views and obtain subtitle-style approval before the full burn as usual. A sample preview saves only its own sample work directory.
 
+## Current SRT, switching, and Save As
+
+The top-right header shows the current SRT filename in a dropdown. Its full path appears only in the dropdown tooltip on hover; there is no separate file bar. Use the dropdown to switch among SRT files in the same directory. Switching pauses playback, retains each file's browser draft, and restores its saved review and hidden flags when switching back. Selection and undo history reset. Saved per-file reviews are archived under `subtitle-files/` in the work directory; the root review JSON always belongs to the displayed SRT. Restarting without `--reset` resumes the last selected file. `--reset` clears saved markers and archived file reviews as well as rebuilding the transcript.
+
+**另存为** exports the current visible cues, including the latest text edit, as a separate UTF-8 SRT with consecutive numbering and millisecond timestamps. Hidden cues are omitted. Browsers supporting the native save picker let the user choose a name and destination; others download `<current-stem>_导出.srt` using their download settings. Export does not mark the review as saved or change the active SRT; use **保存** to persist the review. An empty visible selection cannot be exported.
+
+`GET /api/transcript` includes `current`, `files`, and a per-source `draft_key`. `GET /api/subtitles` refreshes the file list; `POST /api/subtitles/switch` accepts a listed `path`. Save, switch, and export requests from the page include the current `source` path; stale tabs receive HTTP 409 instead of saving over another file's review. `POST /api/export` formats supplied live segments without writing a server file.
+
 The default work directory is `<video-stem>.subtitle-work/` beside the video (or the explicitly supplied `--work-dir`). It contains the review JSON, original transcript snapshot, manifest, and saved-state/diff records. Sync overwrites the exact path passed as `--srt`; the normal workflow updates `<stem>_polished.srt` beside the video and preserves the raw `<stem>.srt`. It does not create a new SRT output directory or automatically back up the destination SRT. Do not point sync at the raw SRT unless the user explicitly requests that overwrite.
 
 ## Start
@@ -53,6 +61,7 @@ Verify before sending a URL:
 
 - `GET /` returns HTML
 - `GET /manifest` video, duration, cue language
+- `GET /api/subtitles` current SRT path and sibling SRT files
 - `GET /api/transcript` first cue and count
 - `GET /api/status` has `"saved": false` until the user clicks 保存
 

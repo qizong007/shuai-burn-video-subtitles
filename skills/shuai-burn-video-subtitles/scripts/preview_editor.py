@@ -4,12 +4,15 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import math
 import os
 import shutil
 import socket
 import subprocess
 import sys
+import threading
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -21,6 +24,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from srt_io import (  # noqa: E402
     diff_segments,
     dump_segments,
+    format_srt,
     load_segments,
     parse_chapters_md,
     parse_srt,
@@ -37,6 +41,20 @@ TRANSCRIPT_NAME = "subtitle-transcript.json"
 ORIG_NAME = "subtitle-transcript.json.orig.json"
 CHAPTERS_NAME = "subtitle-chapters.json"
 MANIFEST_NAME = "subtitle-manifest.json"
+REVIEW_FILES = (TRANSCRIPT_NAME, ORIG_NAME, SAVED_NAME, "manual-edit-review.json")
+
+
+def review_cues(segments: list[dict]) -> list[dict]:
+    result = []
+    for seg in segments:
+        start, end = float(seg["start"]), float(seg["end"])
+        text = strip_terminal_punctuation(str(seg.get("text") or "").strip())
+        if not text:
+            raise ValueError("字幕内容不能为空")
+        if not math.isfinite(start) or not math.isfinite(end) or start < 0 or end <= start:
+            raise ValueError("字幕时间无效")
+        result.append({"start": start, "end": end, "text": text, "hidden": bool(seg.get("hidden"))})
+    return result
 
 
 def probe_duration(video: Path) -> float:
@@ -79,6 +97,11 @@ def prepare_work(
     work_dir.mkdir(parents=True, exist_ok=True)
     transcript_path = work_dir / TRANSCRIPT_NAME
     orig_path = work_dir / ORIG_NAME
+    manifest_path = work_dir / MANIFEST_NAME
+    previous = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else {}
+    source = str(srt.resolve())
+    if not reset and transcript_path.is_file():
+        source = previous.get("source_srt") or source
     duration = probe_duration(video) or 0.0
 
     if reset or not transcript_path.is_file():
@@ -88,6 +111,10 @@ def prepare_work(
             raise ValueError("A cue is empty after removing terminal punctuation")
         dump_segments(transcript_path, cues)
         dump_segments(orig_path, cues)
+        for name in (SAVED_NAME, "manual-edit-review.json"):
+            (work_dir / name).unlink(missing_ok=True)
+        if reset:
+            shutil.rmtree(work_dir / "subtitle-files", ignore_errors=True)
     elif not orig_path.is_file():
         shutil.copy2(transcript_path, orig_path)
 
@@ -114,6 +141,7 @@ def prepare_work(
 
     manifest = {
         "video": rel_video,
+        "source_srt": source,
         "subtitle_mode": "zh",
         "duration": duration,
         "languages": [{"code": "zh", "name": "中文", "transcript": TRANSCRIPT_NAME, "source": True}],
@@ -202,12 +230,64 @@ def make_handler(video: Path, work_dir: Path) -> type[BaseHTTPRequestHandler]:
     transcript_path = work_dir / TRANSCRIPT_NAME
     orig_path = work_dir / ORIG_NAME
     html = HTML_PATH.read_text(encoding="utf-8")
+    lock = threading.RLock()
+
+    def read_manifest() -> dict:
+        return json.loads((work_dir / MANIFEST_NAME).read_text(encoding="utf-8"))
+
+    def source_info() -> dict:
+        source = Path(read_manifest()["source_srt"])
+        candidates = {path.resolve() for path in source.parent.iterdir()
+                      if path.is_file() and path.suffix.lower() == ".srt"} if source.parent.is_dir() else set()
+        candidates.add(source)
+        return {
+            "current": str(source),
+            "files": [{"path": str(path), "name": path.name} for path in sorted(candidates, key=lambda p: p.name.casefold())],
+            "draft_key": f"burn-subs:{video}:{work_dir}:{source}:{orig_path.stat().st_mtime_ns}",
+        }
+
+    def switch_source(target: Path) -> None:
+        manifest = read_manifest()
+        current = Path(manifest["source_srt"])
+        if target == current:
+            return
+        # Parse first so an invalid SRT cannot disturb the active review.
+        cues = review_cues(parse_srt(target))
+        snapshots = work_dir / "subtitle-files"
+        def snapshot_dir(path: Path) -> Path:
+            return snapshots / hashlib.sha256(str(path).encode("utf-8")).hexdigest()
+        old_dir = snapshot_dir(current)
+        new_dir = snapshot_dir(target)
+        old_dir.mkdir(parents=True, exist_ok=True)
+        for name in REVIEW_FILES:
+            if (work_dir / name).is_file():
+                shutil.copy2(work_dir / name, old_dir / name)
+            else:
+                (old_dir / name).unlink(missing_ok=True)
+        for name in REVIEW_FILES:
+            (work_dir / name).unlink(missing_ok=True)
+        if (new_dir / TRANSCRIPT_NAME).is_file():
+            for name in REVIEW_FILES:
+                if (new_dir / name).is_file():
+                    shutil.copy2(new_dir / name, work_dir / name)
+        else:
+            dump_segments(transcript_path, cues)
+            dump_segments(orig_path, cues)
+        manifest["source_srt"] = str(target)
+        (work_dir / MANIFEST_NAME).write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, fmt: str, *args) -> None:
             sys.stderr.write("%s - %s\n" % (self.address_string(), fmt % args))
 
         def do_GET(self) -> None:
+            if urlparse(self.path).path == "/video":
+                send_file_range(self, video, "video/mp4")
+                return
+            with lock:
+                self.get_locked()
+
+        def get_locked(self) -> None:
             path = urlparse(self.path).path
             if path in {"/", "/index.html"}:
                 cache_key = json.dumps(
@@ -224,11 +304,11 @@ def make_handler(video: Path, work_dir: Path) -> type[BaseHTTPRequestHandler]:
                 payload["video"] = "/video"
                 send_json(self, payload)
                 return
-            if path == "/video":
-                send_file_range(self, video, "video/mp4")
-                return
             if path == "/api/transcript":
-                send_json(self, {"segments": load_segments(transcript_path)})
+                send_json(self, {"segments": load_segments(transcript_path), **source_info()})
+                return
+            if path == "/api/subtitles":
+                send_json(self, source_info())
                 return
             if path == "/api/status":
                 saved_path = work_dir / SAVED_NAME
@@ -250,19 +330,36 @@ def make_handler(video: Path, work_dir: Path) -> type[BaseHTTPRequestHandler]:
             self.do_GET()
 
         def do_POST(self) -> None:
-            if urlparse(self.path).path != "/api/transcript":
+            with lock:
+                try:
+                    self.post_locked()
+                except (ValueError, KeyError, TypeError, OSError) as exc:
+                    send_json(self, {"error": str(exc)}, 400)
+
+        def post_locked(self) -> None:
+            path = urlparse(self.path).path
+            if path not in {"/api/transcript", "/api/subtitles/switch", "/api/export"}:
                 self.send_error(404)
                 return
             length = int(self.headers.get("Content-Length") or 0)
             body = json.loads(self.rfile.read(length).decode("utf-8"))
-            segments = body.get("segments") or []
-            segments = [
-                {**seg, "text": strip_terminal_punctuation(str(seg.get("text") or ""))}
-                for seg in segments
-            ]
-            if any(not seg["text"] for seg in segments):
-                send_json(self, {"error": "A cue is empty after removing terminal punctuation"}, 400)
+            if body.get("source") and body["source"] != read_manifest()["source_srt"]:
+                send_json(self, {"error": "当前文件已切换，请刷新页面后重试"}, 409)
                 return
+            if path == "/api/subtitles/switch":
+                target = Path(body["path"]).expanduser().resolve()
+                if str(target) not in {item["path"] for item in source_info()["files"]}:
+                    raise ValueError("请选择列表中的 SRT 文件")
+                switch_source(target)
+                send_json(self, {"segments": load_segments(transcript_path), **source_info()})
+                return
+            if path == "/api/export":
+                visible = review_cues([seg for seg in body.get("segments", []) if not seg.get("hidden")])
+                if not visible:
+                    raise ValueError("没有可导出的可见字幕")
+                send_bytes(self, 200, format_srt(visible).encode("utf-8"), "application/x-subrip; charset=utf-8")
+                return
+            segments = review_cues(body.get("segments") or [])
             if not orig_path.is_file():
                 shutil.copy2(transcript_path, orig_path)
             before = load_segments(orig_path)

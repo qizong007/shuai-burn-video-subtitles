@@ -76,7 +76,14 @@ applyTheme();
   :root[data-theme="dark"] .wordmark .wordmark-light { display: none; }
   :root[data-theme="dark"] .wordmark .wordmark-dark { display: block; }
   .app-title { padding-left: 16px; border-left: 1px solid var(--border); color: var(--muted); font-size: 12px; }
-  .app-actions { margin-left: auto; display: flex; align-items: center; }
+  .app-actions { margin-left: auto; display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .srt-picker { position: relative; display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12px; }
+  .srt-picker::after { content: ""; position: absolute; right: 12px; top: 50%; width: 6px; height: 6px;
+    border-right: 1px solid var(--muted); border-bottom: 1px solid var(--muted);
+    transform: translateY(-70%) rotate(45deg); pointer-events: none; }
+  .srt-picker label { flex-shrink: 0; color: var(--muted); }
+  .srt-picker select { appearance: none; min-width: 100px; max-width: min(280px, 30vw); padding: 5px 28px 5px 8px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; }
   .workspace { flex: 1; min-height: 0; display: flex; }
   .video-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   .video-wrap {
@@ -137,6 +144,8 @@ applyTheme();
     background: var(--accent); border-color: var(--accent); color: var(--on-accent);
     font-weight: 600; padding: 8px 16px; font-size: 13px; width: 100%;
   }
+  .save-actions { display: flex; gap: 8px; }
+  .save-actions .save { flex: 1; width: auto; }
   .find-bar { display: none; flex-wrap: wrap; }
   .find-bar.show { display: flex; }
   .find-bar input {
@@ -183,6 +192,10 @@ applyTheme();
     <div class="wordmark"><img class="wordmark-light" src="/brand/shuai-wordmark.png" alt="shuai" width="1774" height="887"><img class="wordmark-dark" src="/brand/shuai-wordmark-dark.png" alt="shuai" width="1774" height="887"></div>
     <span class="app-title">字幕工作台</span>
     <div class="app-actions" role="group" aria-label="工作台设置">
+      <div class="srt-picker">
+        <label for="srtSelect">当前 SRT</label>
+        <select id="srtSelect" aria-label="切换 SRT 文件" disabled></select>
+      </div>
       <button class="icon-btn" id="btnTheme" aria-label="切换主题">
         <svg class="theme-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
         <svg class="theme-moon" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M20.5 14A8.5 8.5 0 0 1 10 3.5 8.5 8.5 0 1 0 20.5 14Z"/></svg>
@@ -220,12 +233,18 @@ applyTheme();
     <div class="subtitle-list" id="list"></div>
     <div class="panel-footer">
       <div class="panel-status" id="statusText">单击跳转，双击编辑，Cmd/Ctrl+F 查找</div>
-      <button class="btn save" id="btnSave">保存</button>
+      <div class="save-actions">
+        <button class="btn save" id="btnSave" disabled>保存</button>
+        <button class="btn" id="btnSaveAs" disabled>另存为</button>
+      </div>
     </div>
   </div>
   </main>
 <script>
-const LS_KEY = __CACHE_KEY__;
+const LEGACY_LS_KEY = __CACHE_KEY__;
+let LS_KEY = LEGACY_LS_KEY;
+let currentSource = "";
+let fileBusy = false;
 let segments = [];
 let selectedIds = new Set();
 let findIndex = -1;
@@ -248,6 +267,8 @@ const contentProgress = document.getElementById("contentProgress");
 const contentProgressFill = document.getElementById("contentProgressFill");
 const contentProgressLabels = document.getElementById("contentProgressLabels");
 const themeButton = document.getElementById("btnTheme");
+const srtSelect = document.getElementById("srtSelect");
+const saveAsBtn = document.getElementById("btnSaveAs");
 function setThemePreference(theme) {
   themePreference = theme;
   try { localStorage.setItem(THEME_KEY, themePreference); } catch (_) {}
@@ -310,7 +331,7 @@ function renderCurrentSubtitle(seg) {
 }
 
 function setupContentProgress() {
-  const duration = Number(manifest.duration || 0);
+  const duration = Number(manifest?.duration || 0);
   const enabled = duration > 180 && chapters.length > 1;
   contentProgress.classList.toggle("visible", enabled);
   contentProgressLabels.replaceChildren();
@@ -476,7 +497,7 @@ function commitChange(change) {
   redoStack = [];
   saveLS();
   updateHistoryButtons();
-  document.getElementById("btnSave").disabled = false;
+  document.getElementById("btnSave").disabled = fileBusy;
 }
 function restoreHistory(from, to, label) {
   if (!from.length) return;
@@ -489,7 +510,7 @@ function restoreHistory(from, to, label) {
   saveLS();
   render();
   updateHistoryButtons();
-  document.getElementById("btnSave").disabled = false;
+  document.getElementById("btnSave").disabled = fileBusy;
   statusTxt.textContent = label;
 }
 document.getElementById("btnUndo").addEventListener("click", () => restoreHistory(undoStack, redoStack, "已撤回"));
@@ -592,21 +613,40 @@ document.getElementById("btnMerge").addEventListener("click", () => {
   render();
 });
 
-document.getElementById("btnSave").addEventListener("click", async () => {
+function commitActiveEdit() {
   const active = document.activeElement;
   if (active && active.classList.contains("sub-text")) active.blur();
+}
+function plainSegments() {
+  return segments.map(({ _id, ...rest }) => rest);
+}
+function setFileBusy(busy) {
+  fileBusy = busy;
+  document.getElementById("btnSave").disabled = busy;
+  saveAsBtn.disabled = busy;
+  srtSelect.disabled = busy;
+}
+async function postJSON(path, body) {
+  const res = await fetch(path, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source: currentSource, ...body })
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "请求失败，请重试");
+  }
+  return res;
+}
+
+document.getElementById("btnSave").addEventListener("click", async () => {
+  if (fileBusy) return;
+  commitActiveEdit();
   const toSave = segments.map(({ _id, ...rest }) => rest);
   const savedContent = JSON.stringify(toSave);
-  const saveBtn = document.getElementById("btnSave");
-  saveBtn.disabled = true;
+  setFileBusy(true);
   statusTxt.textContent = "正在保存…";
   try {
-    const res = await fetch("/api/transcript", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ segments: toSave })
-    });
-    if (!res.ok) throw new Error("Save failed");
+    const res = await postJSON("/api/transcript", { segments: toSave });
     const result = await res.json();
     const hasNewEdits = JSON.stringify(segments.map(({ _id, ...rest }) => rest)) !== savedContent;
     if (!hasNewEdits) {
@@ -614,10 +654,110 @@ document.getElementById("btnSave").addEventListener("click", async () => {
     }
     statusTxt.textContent = `已保存 ${toSave.length} 条（隐藏 ${result.hidden || 0} 条）`
       + (hasNewEdits ? "，还有新修改未保存" : "，可继续编辑");
-  } catch (_) {
-    statusTxt.textContent = "保存失败，请重试";
+  } catch (error) {
+    statusTxt.textContent = `保存失败：${error.message}`;
   } finally {
-    saveBtn.disabled = false;
+    setFileBusy(false);
+  }
+});
+
+function loadSubtitle(data, migrateLegacy = false) {
+  currentSource = data.current;
+  LS_KEY = data.draft_key;
+  srtSelect.replaceChildren(...data.files.map(file => {
+    const option = document.createElement("option");
+    option.value = file.path;
+    option.textContent = file.name;
+    return option;
+  }));
+  srtSelect.value = currentSource;
+  srtSelect.title = currentSource;
+  segments = (data.segments || []).map(s => ({ ...s, _id: Math.random().toString(36).slice(2) }));
+  try {
+    const cached = localStorage.getItem(LS_KEY) || (migrateLegacy ? localStorage.getItem(LEGACY_LS_KEY) : null);
+    const draft = JSON.parse(cached || "null");
+    if (draft?.version === 2 && Array.isArray(draft.segments)) {
+      segments = draft.segments;
+      saveLS();
+    }
+    if (migrateLegacy && LEGACY_LS_KEY !== LS_KEY) localStorage.removeItem(LEGACY_LS_KEY);
+  } catch (_) {}
+  selectedIds.clear();
+  undoStack = [];
+  redoStack = [];
+  findIndex = -1;
+  render();
+  updateHistoryButtons();
+}
+
+srtSelect.addEventListener("change", async () => {
+  if (fileBusy) { srtSelect.value = currentSource; return; }
+  const target = srtSelect.value;
+  commitActiveEdit();
+  saveLS();
+  vid.pause();
+  const workspace = document.querySelector(".workspace");
+  workspace.inert = true;
+  setFileBusy(true);
+  statusTxt.textContent = "正在切换…";
+  try {
+    const res = await postJSON("/api/subtitles/switch", { path: target });
+    loadSubtitle(await res.json());
+    statusTxt.textContent = "已切换，原文件编辑进度已保留";
+  } catch (error) {
+    srtSelect.value = currentSource;
+    statusTxt.textContent = `切换失败：${error.message}`;
+  } finally {
+    workspace.inert = false;
+    setFileBusy(false);
+  }
+});
+// Refresh the list when opening it so newly created SRTs are available.
+srtSelect.addEventListener("focus", async () => {
+  try {
+    const res = await fetch("/api/subtitles", { cache: "no-store" });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.current !== currentSource) return;
+    srtSelect.replaceChildren(...data.files.map(file => new Option(file.name, file.path)));
+    srtSelect.value = currentSource;
+  } catch (_) {}
+});
+
+saveAsBtn.addEventListener("click", async () => {
+  if (fileBusy) return;
+  commitActiveEdit();
+  const toExport = plainSegments();
+  const name = srtSelect.selectedOptions[0].textContent.replace(/\.srt$/i, "") + "_导出.srt";
+  setFileBusy(true);
+  try {
+    let handle = null;
+    if (window.showSaveFilePicker) {
+      handle = await window.showSaveFilePicker({
+        suggestedName: name,
+        types: [{ description: "SRT 字幕", accept: { "application/x-subrip": [".srt"] } }]
+      });
+    }
+    const res = await postJSON("/api/export", { segments: toExport });
+    const blob = await res.blob();
+    if (handle) {
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      statusTxt.textContent = `已另存为 ${handle.name}`;
+    } else {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      statusTxt.textContent = `已发起下载 ${name}`;
+    }
+  } catch (error) {
+    statusTxt.textContent = error.name === "AbortError" ? "已取消另存为" : `另存为失败：${error.message}`;
+  } finally {
+    setFileBusy(false);
   }
 });
 
@@ -630,16 +770,12 @@ async function init() {
   manifest = await (await fetch("/manifest")).json();
   chapters = Array.isArray(manifest.chapters) ? manifest.chapters : [];
   const data = await (await fetch("/api/transcript", { cache: "no-store" })).json();
-  segments = (data.segments || []).map(s => Object.assign({}, s, { _id: Math.random().toString(36).slice(2) }));
-  try {
-    const draft = JSON.parse(localStorage.getItem(LS_KEY) || "null");
-    if (draft?.version === 2 && Array.isArray(draft.segments)) segments = draft.segments;
-  } catch (_) {}
-  render();
+  loadSubtitle(data, true);
+  setFileBusy(false);
   setupContentProgress();
   syncCurSub(false);
 }
-init();
+init().catch(error => { statusTxt.textContent = `加载失败：${error.message}，请刷新重试`; });
 </script>
 </body>
 </html>

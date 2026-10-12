@@ -43,6 +43,8 @@ Open the local review page with the polished SRT. The editor strips terminal pun
 
 The review UI uses the approved **shuai** wordmark with a red i dot in its top-left header (see [references/brand.md](references/brand.md)). It supports automatic local-time light/dark mode, a single sun/moon toggle, multi-selection, reversible hiding, merging adjacent cues, and undo/redo. See [references/preview-editor.md](references/preview-editor.md) for controls and save behavior.
 
+The top-right SRT dropdown switches among sibling SRT files, with separate review progress for each file in the same work directory. Hover it to read the full source path. **保存** persists the current review JSON; **另存为** exports the current visible cues as a separate SRT without marking the review saved or changing the selected source.
+
 ```bash
 WORK="input.subtitle-work"
 python3 "$SKILL/scripts/preview_editor.py" \
@@ -56,6 +58,8 @@ Start the command in the background, verify `/`, `/manifest`, `/api/transcript`,
 After saving, sync edits and show the diff. Then update the polished transcript views:
 
 The page saves review JSON in `$WORK`; sync overwrites the specified polished SRT beside the video. Keep the raw SRT unchanged.
+
+Before syncing or burning after a file switch, read `/api/transcript` field `current` or `$WORK/subtitle-manifest.json` field `source_srt` to identify the selected version, and check `/api/status` for its saved review. Sync that active review to the intended reviewed SRT (or use its verified Save As export), then pass that exact SRT path to preview and burn. Do not infer the selected version from the original launch command or burn its unmodified source file merely because the review was saved.
 
 ```bash
 python3 "$SKILL/scripts/sync_review.py" --work-dir "$WORK" --srt input_polished.srt

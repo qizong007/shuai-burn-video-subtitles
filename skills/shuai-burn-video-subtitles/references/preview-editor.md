@@ -19,6 +19,14 @@ Each cue shows its start and end on separate centered lines with a short vertica
 - **查找** and Cmd/Ctrl+F toggle the same search/replace panel. Escape dismisses it. There is no select-all control.
 - Edits, merges, and visibility changes are cached as a browser draft until saved; selection is temporary.
 
+## Find and replace
+
+**查找** opens the search panel; Cmd/Ctrl+F opens or focuses it. Escape or the close button dismisses it. Typing finds literal, case-insensitive occurrences in the original cue text, including hidden cues. Each occurrence is counted separately, even within one cue. All matches are highlighted, with a stronger highlight and row outline for the current match. The panel shows `第 2 / 共 5 处 · 字幕第 8 条`, identifies hidden cues, and explicitly shows zero results when nothing matches.
+
+**上一处** / **下一处**, Shift+Enter / Enter move through occurrences and wrap around. Navigation pauses and seeks the video and scrolls the current match into view. Enter in the search field only navigates; it never changes subtitle text. Closing and reopening restores the query and highlighting. Edits, undo/redo, and switching SRTs refresh the results.
+
+**替换当前** changes only the highlighted occurrence and advances; **全部替换** changes all matching occurrences, including hidden cues. Empty replacement text deletes matches only when a replacement button is clicked. Replacement text is literal, including `$` characters. Replacements can be undone.
+
 ## Undo and redo
 
 The two arrows beside the cue count undo and redo committed text edits, replacements, merges, and individual/batch visibility changes. Keep up to 50 operations in memory; a new change after undo clears the redo branch. Reloading or reopening starts a fresh history, while retaining the current draft or saved data. Selection, seeking, and theme changes do not create history entries.

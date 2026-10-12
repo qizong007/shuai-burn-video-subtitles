@@ -39,7 +39,9 @@ applyTheme();
     --on-accent: #fff;
     --hover: #f2f2f2;
     --current: #e8e8e8;
-    --mark: #d4d4d4;
+    --mark: #ffe69a;
+    --mark-text: #332500;
+    --mark-active: #b73832;
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
@@ -52,7 +54,9 @@ applyTheme();
     --on-accent: #171717;
     --hover: #242424;
     --current: #303030;
-    --mark: #505050;
+    --mark: #69541d;
+    --mark-text: #fff3ca;
+    --mark-active: #e59c52;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -148,6 +152,9 @@ applyTheme();
   .save-actions .save { flex: 1; width: auto; }
   .find-bar { display: none; flex-wrap: wrap; }
   .find-bar.show { display: flex; }
+  .find-row { display: flex; align-items: center; gap: 6px; width: 100%; }
+  .find-row .btn { flex-shrink: 0; }
+  .find-status { width: 100%; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
   .find-bar input {
     flex: 1; min-width: 90px; border: 1px solid var(--border);
     border-radius: 6px; padding: 4px 8px; font-size: 12px;
@@ -166,6 +173,7 @@ applyTheme();
   .sub-item:hover { background: var(--hover); }
   .sub-item.current { background: var(--current); box-shadow: inset 3px 0 var(--accent); }
   .sub-item.selected { outline: 1px solid var(--muted); outline-offset: -1px; }
+  .sub-item.search-hit { outline: 2px solid var(--mark-active); outline-offset: -2px; }
   .sub-item.is-hidden .sub-text { color: var(--muted); opacity: .65; }
   .sub-item > input[type="checkbox"] { justify-self: center; margin: 0; }
   .sub-times {
@@ -174,7 +182,7 @@ applyTheme();
     font-variant-numeric: tabular-nums; white-space: nowrap;
   }
   .time-divider { width: 1px; height: 8px; background: var(--muted); opacity: .5; }
-  .sub-text { font-size: 13px; line-height: 1.45; min-height: 1.4em; outline: none; }
+  .sub-text { font-size: 13px; line-height: 1.45; min-height: 1.4em; outline: none; white-space: pre-wrap; overflow-wrap: anywhere; }
   .sub-actions { display: flex; gap: 12px; }
   .icon-btn {
     width: 28px; height: 28px; flex-shrink: 0; display: inline-flex;
@@ -184,7 +192,8 @@ applyTheme();
   .icon-btn:hover { color: var(--text); background: var(--hover); }
   .icon-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   .panel-status { font-size: 12px; color: var(--muted); min-height: 16px; }
-  mark { background: var(--mark); color: var(--text); padding: 0; }
+  mark { background: var(--mark); color: var(--mark-text); padding: 0; border-radius: 2px; }
+  mark.search-current { background: var(--mark-active); color: var(--surface); }
 </style>
 </head>
 <body>
@@ -225,10 +234,18 @@ applyTheme();
       </div>
     </div>
     <div class="find-bar" id="findBar">
-      <input id="findInput" placeholder="查找">
-      <input id="replaceInput" placeholder="替换为">
-      <button class="btn" id="btnReplaceOne">替换下一个</button>
-      <button class="btn" id="btnReplaceAll">全部替换</button>
+      <div class="find-row">
+        <input id="findInput" placeholder="查找文字" aria-label="查找文字">
+        <button class="btn" id="btnFindPrev" title="Shift+Enter">上一处</button>
+        <button class="btn" id="btnFindNext" title="Enter">下一处</button>
+        <button class="icon-btn" id="btnFindClose" aria-label="关闭查找">×</button>
+      </div>
+      <div class="find-status" id="findStatus" role="status" aria-live="polite">输入文字开始查找</div>
+      <div class="find-row">
+        <input id="replaceInput" placeholder="替换为（可留空）" aria-label="替换为">
+        <button class="btn" id="btnReplaceOne">替换当前</button>
+        <button class="btn" id="btnReplaceAll">全部替换</button>
+      </div>
     </div>
     <div class="subtitle-list" id="list"></div>
     <div class="panel-footer">
@@ -248,6 +265,7 @@ let fileBusy = false;
 let segments = [];
 let selectedIds = new Set();
 let findIndex = -1;
+let findMatches = [];
 let currentNeedle = "";
 let manifest = null;
 let chapters = [];
@@ -291,9 +309,20 @@ function escapeHtml(s) {
 function escapeRe(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-function insertMarks(text, needle) {
-  if (!needle) return escapeHtml(text);
-  return escapeHtml(text).replace(new RegExp(escapeRe(needle), "gi"), m => `<mark>${m}</mark>`);
+function textMatches(text, needle) {
+  if (!needle) return [];
+  return [...text.matchAll(new RegExp(escapeRe(needle), "gi"))].map(match => ({
+    start: match.index, end: match.index + match[0].length,
+  }));
+}
+function insertMarks(text, needle, activeStart = -1) {
+  let html = "", offset = 0;
+  for (const match of textMatches(text, needle)) {
+    html += escapeHtml(text.slice(offset, match.start));
+    html += `<mark${match.start === activeStart ? ' class="search-current" aria-current="true"' : ''}>${escapeHtml(text.slice(match.start, match.end))}</mark>`;
+    offset = match.end;
+  }
+  return html + escapeHtml(text.slice(offset));
 }
 function fmt(s) {
   const m = Math.floor(s / 60);
@@ -365,11 +394,12 @@ function syncCurSub(doScroll) {
   document.querySelectorAll(".sub-item").forEach(el => {
     const isActive = active && el.dataset.id == active._id;
     el.classList.toggle("current", !!isActive);
-    if (isActive && doScroll !== false) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    if (isActive && doScroll !== false && !currentNeedle) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
   });
 }
 
 function render() {
+  refreshFindMatches();
   listEl.innerHTML = "";
   segments.forEach((seg, index) => {
     const id = seg._id || (seg._id = Math.random().toString(36).slice(2));
@@ -409,7 +439,7 @@ function render() {
       if (textEl.contentEditable === "true") {
         finishEdit(id, textEl.innerText.trim());
         textEl.contentEditable = "false";
-        textEl.innerHTML = insertMarks(seg.text || "", currentNeedle);
+        paintFindResults();
         syncCurSub(false);
       }
     });
@@ -445,6 +475,7 @@ function render() {
   });
   updateInfo();
   syncCurSub(false);
+  paintFindResults();
 }
 
 function startEdit(id, textEl) {
@@ -498,6 +529,8 @@ function commitChange(change) {
   saveLS();
   updateHistoryButtons();
   document.getElementById("btnSave").disabled = fileBusy;
+  refreshFindMatches();
+  paintFindResults();
 }
 function restoreHistory(from, to, label) {
   if (!from.length) return;
@@ -517,13 +550,17 @@ document.getElementById("btnUndo").addEventListener("click", () => restoreHistor
 document.getElementById("btnRedo").addEventListener("click", () => restoreHistory(redoStack, undoStack, "已重做"));
 
 function toggleFind(force) {
+  commitActiveEdit();
   const show = force ?? !findBarEl.classList.contains("show");
   findBarEl.classList.toggle("show", show);
   document.getElementById("btnFind").setAttribute("aria-expanded", String(show));
-  if (show) { findInput.focus(); findInput.select(); }
-  else { currentNeedle = ""; render(); }
+  currentNeedle = show ? findInput.value : "";
+  findIndex = -1;
+  render();
+  if (show) { findInput.focus(); findInput.select(); locateFindMatch(); }
 }
 document.getElementById("btnFind").addEventListener("click", () => toggleFind());
+document.getElementById("btnFindClose").addEventListener("click", () => toggleFind(false));
 
 document.addEventListener("keydown", e => {
   const typing = e.target.closest('textarea, input:not([type="checkbox"]), [contenteditable="true"]');
@@ -539,52 +576,99 @@ document.addEventListener("keydown", e => {
   }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
     e.preventDefault();
-    toggleFind();
+    toggleFind(true);
   }
   if (e.key === "Escape" && findBarEl.classList.contains("show")) {
     toggleFind(false);
   }
 });
 
-findInput.addEventListener("input", () => { currentNeedle = findInput.value; render(); });
-
-function doFind(replaceVal, replaceOne) {
-  const needle = findInput.value;
-  if (!needle) return;
-  const re = new RegExp(escapeRe(needle), "i");
-  const vis = visibleSegments();
-  if (replaceVal && !replaceOne) {
-    let count = 0;
-    commitChange(() => {
-      vis.forEach(s => {
-        const next = (s.text || "").replace(new RegExp(escapeRe(needle), "gi"), replaceVal);
-        if (next !== s.text) { s.text = next; count++; }
-      });
-    });
-    statusTxt.textContent = `已替换 ${count} 处`;
-    render(); return;
-  }
-  const startIdx = findIndex < 0 ? 0 : findIndex + 1;
-  for (let i = 0; i < vis.length; i++) {
-    const idx = (startIdx + i) % vis.length;
-    if (!re.test(vis[idx].text || "")) continue;
-    findIndex = idx;
-    const el = listEl.querySelector(`[data-id="${vis[idx]._id}"]`);
-    if (el) el.scrollIntoView({ block: "nearest" });
-    if (replaceOne) {
-      commitChange(() => {
-        vis[idx].text = (vis[idx].text || "").replace(new RegExp(escapeRe(needle), "gi"), replaceVal);
-      });
-      render();
-    }
-    return;
-  }
-  statusTxt.textContent = "未找到: " + needle;
+function refreshFindMatches() {
+  const previous = findMatches[findIndex];
+  findMatches = segments.flatMap((seg, cueIndex) =>
+    textMatches(seg.text || "", currentNeedle).map(match => ({ ...match, id: seg._id, cueIndex })));
+  const retained = previous && findIndex >= 0
+    ? findMatches.findIndex(match => match.id === previous.id && match.start === previous.start) : -1;
+  findIndex = findMatches.length ? (retained >= 0 ? retained : Math.max(0, Math.min(findIndex, findMatches.length - 1))) : -1;
 }
 
-document.getElementById("btnReplaceOne").addEventListener("click", () => doFind(repInput.value, true));
-document.getElementById("btnReplaceAll").addEventListener("click", () => doFind(repInput.value, false));
-findInput.addEventListener("keydown", e => { if (e.key === "Enter") doFind(repInput.value, true); });
+function paintFindResults() {
+  const active = findMatches[findIndex];
+  listEl.querySelectorAll(".sub-item").forEach(item => {
+    const seg = segments.find(s => s._id === item.dataset.id);
+    item.classList.toggle("search-hit", item.dataset.id === active?.id);
+    const text = item.querySelector(".sub-text");
+    if (text.contentEditable !== "true") {
+      text.innerHTML = insertMarks(seg?.text || "", currentNeedle, item.dataset.id === active?.id ? active.start : -1);
+    }
+  });
+  const hasHidden = findMatches.some(match => segments[match.cueIndex].hidden);
+  document.getElementById("findStatus").textContent = !currentNeedle ? "输入文字开始查找"
+    : active ? `第 ${findIndex + 1} / 共 ${findMatches.length} 处 · 字幕第 ${active.cueIndex + 1} 条`
+      + (segments[active.cueIndex].hidden ? "（已隐藏）" : hasHidden ? "（含隐藏字幕）" : "")
+    : `未找到“${currentNeedle}”（0 处）`;
+  ["btnFindPrev", "btnFindNext", "btnReplaceOne", "btnReplaceAll"].forEach(id => {
+    document.getElementById(id).disabled = !active;
+  });
+}
+
+function locateFindMatch() {
+  const active = findMatches[findIndex];
+  if (!active) return;
+  vid.pause();
+  vid.currentTime = segments[active.cueIndex].start;
+  syncCurSub(false);
+  listEl.querySelector("mark.search-current")?.scrollIntoView({ block: "nearest" });
+}
+
+function navigateFind(direction) {
+  if (!findMatches.length) return;
+  findIndex = (findIndex + direction + findMatches.length) % findMatches.length;
+  paintFindResults();
+  locateFindMatch();
+}
+
+function replaceMatches(all) {
+  const active = findMatches[findIndex];
+  if (!active) return;
+  const count = all ? findMatches.length : 1;
+  const nextIndex = findIndex;
+  const replacement = repInput.value;
+  commitChange(() => {
+    if (all) {
+      segments.forEach(seg => {
+        seg.text = (seg.text || "").replace(new RegExp(escapeRe(currentNeedle), "gi"), () => replacement);
+      });
+    } else {
+      const seg = segments[active.cueIndex];
+      seg.text = seg.text.slice(0, active.start) + replacement + seg.text.slice(active.end);
+    }
+  });
+  refreshFindMatches();
+  if (!all) {
+    // Continue after the replacement, even when the replacement contains the query.
+    const next = findMatches.findIndex(match => match.cueIndex > active.cueIndex
+      || (match.cueIndex === active.cueIndex && match.start >= active.start + replacement.length));
+    findIndex = next >= 0 ? next : 0;
+  } else findIndex = Math.min(nextIndex, findMatches.length - 1);
+  render();
+  locateFindMatch();
+  statusTxt.textContent = `已替换 ${count} 处`;
+}
+
+findInput.addEventListener("input", () => {
+  currentNeedle = findInput.value;
+  findIndex = -1;
+  render();
+  locateFindMatch();
+});
+document.getElementById("btnFindPrev").addEventListener("click", () => navigateFind(-1));
+document.getElementById("btnFindNext").addEventListener("click", () => navigateFind(1));
+document.getElementById("btnReplaceOne").addEventListener("click", () => replaceMatches(false));
+document.getElementById("btnReplaceAll").addEventListener("click", () => replaceMatches(true));
+findInput.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); navigateFind(e.shiftKey ? -1 : 1); }
+});
 
 document.getElementById("btnHideSelected").addEventListener("click", () => {
   let count = 0;

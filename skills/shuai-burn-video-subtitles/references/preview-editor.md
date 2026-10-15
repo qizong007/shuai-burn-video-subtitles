@@ -79,6 +79,6 @@ If the preferred port is busy, the script picks the next free port in a +9 windo
 
 `subtitle-transcript.json` written during prepare is not a save. 保存 keeps the editor open, so `GET /api/status` showing `"saved": true` and an existing `preview-saved.json` confirms persistence only; it does not mean the user has finished reviewing. Wait until the user confirms the review is complete / 可以继续 / 可以烧了, and ensure their latest edits have been saved before syncing or burning.
 
-Then run `scripts/sync_review.py` to write the polished SRT and print the diff. Do not write glossary files. One-off wording fixes stay in the SRT only.
+Then run `scripts/sync_review.py` to write the polished SRT and print the diff. One-off wording fixes stay in the SRT only. Update the local glossary only when the user explicitly asks; do not copy private entries into public examples.
 
 `--allow-unsaved` is only for recovering a crashed page when the user confirms the current transcript is the one they want.

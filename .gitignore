@@ -22,3 +22,6 @@ __pycache__/
 /.local-design/
 /assets/brand-exploration/
 /assets/readme/source/
+
+# Private subtitle terminology; keep the public example in references/
+/skills/shuai-burn-video-subtitles/local/

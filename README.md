@@ -48,6 +48,23 @@ CLI 会让你选择目标 Agent 和安装范围。安装完成后，提供本地
 
 有现成 SRT 时也可直接校对或烧录，跳过转写。
 
+## 自定义字幕词库
+
+可以给 Agent 一份词库，帮助校对姓名、产品名和专业术语。词库用于 **AI 校对阶段**，当前不会自动作为热词传入语音识别模型，也不会无条件替换相似发音。
+
+1. 在安装后的 Skill 目录中，将 [`references/glossary.example.md`](./skills/shuai-burn-video-subtitles/references/glossary.example.md) 复制为 `local/glossary.md`，没有 `local` 文件夹时先创建。
+2. 把虚构姓名和示例词换成自己的内容，写上标准拼写、已知误识别和适用语境。
+3. 照常调用 Skill。Agent 校对时会读取本机词库；也可以在请求中指定任意词库文件路径，任务指定的词库优先。
+
+```text
+使用 $shuai-burn-video-subtitles，给这个视频生成字幕并打开校对页。
+本次词库使用 /path/to/my-glossary.md。
+```
+
+没有词库时照常处理，不会默认套用示例里的姓名。多位说话人的姓名分别核实；一次性改字留在字幕中，只有明确要求时才更新词库。
+
+**私人词库存本机，公开示例供大家替换。** 本仓库已忽略 `skills/shuai-burn-video-subtitles/local/`；安装到其他 Git 项目时，请为实际安装路径补充忽略规则，或把词库放在仓库外再指定路径。重新安装前请备份本机词库。
+
 ## 支持的操作
 
 校对页顶部显示红色 i 圆点的 shuai 字标、工具名与主题切换，左侧播放视频，右侧用单条工具栏管理字幕。点击字幕即可定位到对应画面；选中字幕后显示批量操作。
@@ -161,7 +178,8 @@ shuai-burn-video-subtitles/
     ├── agents/openai.yaml              # Skill 展示元数据
     ├── assets/preview.html             # 网页校对界面
     ├── assets/brand/                   # shuai 字标，红色 i 圆点与 ai 下划线
-    ├── references/                     # 校对与环境说明
+    ├── local/glossary.md               # 可选本机词库，Git 忽略，不随仓库分发
+    ├── references/                     # 校对、环境说明与通用词库示例
     └── scripts/                        # 转写、同步、文稿与烧录脚本
 ```
 
